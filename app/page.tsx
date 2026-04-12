@@ -1,10 +1,13 @@
 import Link from 'next/link'
 import TopAppBar from '@/components/TopAppBar'
 import LandingChat from '@/components/LandingChat'
+import ScrollToChat from '@/components/ScrollToChat'
+import RedirectIfLoggedIn from '@/components/RedirectIfLoggedIn'
 
 export default function LandingPage() {
   return (
     <>
+      <RedirectIfLoggedIn />
       <TopAppBar />
 
       <main className="pt-24 pb-32">
@@ -30,11 +33,9 @@ export default function LandingPage() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-4 pt-4">
-                <a href="#ai-chat">
-                  <button className="editorial-gradient text-white px-8 py-4 rounded-xl font-bold text-lg hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20">
-                    Get Started
-                  </button>
-                </a>
+                <ScrollToChat className="editorial-gradient text-white px-8 py-4 rounded-xl font-bold text-lg hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20">
+                  Get Started
+                </ScrollToChat>
                 <a href="#features">
                   <button className="bg-surface-container-high text-primary px-8 py-4 rounded-xl font-bold text-lg hover:bg-surface-container-highest transition-colors">
                     How it works
@@ -113,11 +114,9 @@ export default function LandingPage() {
             <div className="relative z-10 max-w-xl space-y-6">
               <h2 className="font-headline text-4xl font-bold text-white">Ready to secure your future?</h2>
               <p className="text-surface-variant text-lg">Join thousands of people who have already optimized their financial flow.</p>
-              <a href="#ai-chat">
-                <button className="editorial-gradient text-white px-10 py-4 rounded-xl font-bold text-lg hover:shadow-2xl transition-all">
-                  Get Started Today
-                </button>
-              </a>
+              <ScrollToChat className="editorial-gradient text-white px-10 py-4 rounded-xl font-bold text-lg hover:shadow-2xl transition-all">
+                Get Started Today
+              </ScrollToChat>
             </div>
           </div>
         </section>
@@ -127,10 +126,8 @@ export default function LandingPage() {
       <nav className="md:hidden fixed bottom-0 w-full flex justify-around items-center px-4 pb-6 pt-2 bg-[#F9F9FF]/80 dark:bg-[#0D1C32]/80 backdrop-blur-md rounded-t-[1.5rem] z-50 border-t border-[#BDCABC]/20 shadow-[0px_-12px_32px_rgba(13,28,50,0.06)]">
         {[
           { href: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
-          { href: '/activity', icon: 'receipt_long', label: 'Activity' },
-          { href: '/upload', icon: 'add_circle', label: 'Add', action: true },
+          { href: '/upload', icon: 'upload_file', label: 'Upload', action: true },
           { href: '/invest', icon: 'trending_up', label: 'Invest' },
-          { href: '/upload', icon: 'description', label: 'Files' },
         ].map((item) => (
           <Link
             key={`${item.href}-${item.label}`}

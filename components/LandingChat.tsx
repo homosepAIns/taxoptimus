@@ -1,6 +1,38 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+
+// ── Save helper: DB if logged in, localStorage if not ─────────────────────────
+interface CalcPayload {
+  grossIncome: number; taxStatus: string; age: number; hasMedicalCard: boolean
+  prsiAnnual: number; uscAnnual: number; incomeTaxAnnual: number; netMonthly: number
+  pensionMonthly?: number; potentialAnnualSaving?: number
+}
+
+async function saveCalc(data: CalcPayload): Promise<boolean> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session?.user) {
+    const { error } = await supabase.from('income_profiles').insert({
+      user_id:                 session.user.id,
+      gross_income:            data.grossIncome,
+      tax_status:              data.taxStatus,
+      age:                     data.age,
+      has_medical_card:        data.hasMedicalCard,
+      prsi_annual:             data.prsiAnnual,
+      usc_annual:              data.uscAnnual,
+      income_tax_annual:       data.incomeTaxAnnual,
+      net_monthly:             data.netMonthly,
+      pension_monthly:         data.pensionMonthly ?? null,
+      potential_annual_saving: data.potentialAnnualSaving ?? null,
+    })
+    return !error
+  }
+  // Logged out — persist for after login
+  localStorage.setItem('taxoptimus_pending_calc', JSON.stringify(data))
+  return false
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Step = 'gross' | 'status' | 'age' | 'medical' | 'result' | 'pension' | 'done_positive' | 'done_optimise'
@@ -85,6 +117,9 @@ function Bold({ text }: { text: string }) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function LandingChat() {
+  const router = useRouter()
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [step, setStep] = useState<Step>('gross')
   const [messages, setMessages] = useState<Message[]>([
     { role: 'ai', text: "Let's calculate your Irish take-home pay. What's your annual gross income in euros?" },
@@ -101,11 +136,20 @@ export default function LandingChat() {
   // Calculated results
   const [calc, setCalc] = useState({ prsi: 0, usc: 0, incomeTax: 0, netMonthly: 0, marginalRate: 0.2 })
 
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const chatContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    supabase.auth.getSession().then(({ data: { session } }) => setIsLoggedIn(!!session?.user))
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session?.user)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    const el = chatContainerRef.current
+    if (el) el.scrollTop = el.scrollHeight
   }, [messages, typing])
 
   useEffect(() => {
@@ -148,24 +192,30 @@ export default function LandingChat() {
     } else if (step === 'pension') {
       setMessages((prev) => [...prev, { role: 'user', text: `€${fmt(val)} / month` }])
       const annualPension = val * 12
-      const saving = Math.round(annualPension * calc.marginalRate)
-      localStorage.setItem('taxoptimus_pending_calc', JSON.stringify({
-        grossIncome: gross,
-        taxStatus: status,
-        age,
-        hasMedicalCard: medicalCard,
-        prsiAnnual: calc.prsi,
-        uscAnnual: calc.usc,
-        incomeTaxAnnual: calc.incomeTax,
-        netMonthly: calc.netMonthly,
-        pensionMonthly: val,
-        potentialAnnualSaving: saving,
-      }))
-      aiReply(
-        `By maximising your PRSA pension contributions, you could reclaim up to **€${fmt(saving)} per year** in tax relief at your marginal rate of **${calc.marginalRate * 100}%** — money that currently goes straight to Revenue. Log in or sign up to see your full personalised strategy.`,
-        'done_optimise',
-        1400
-      )
+      const taxSaving = Math.round(annualPension * calc.marginalRate)
+      setSaving(true)
+      saveCalc({
+        grossIncome: gross, taxStatus: status, age, hasMedicalCard: medicalCard,
+        prsiAnnual: calc.prsi, uscAnnual: calc.usc, incomeTaxAnnual: calc.incomeTax,
+        netMonthly: calc.netMonthly, pensionMonthly: val, potentialAnnualSaving: taxSaving,
+      }).then((savedToDB) => {
+        setSaving(false)
+        if (savedToDB) {
+          setTyping(false)
+          setMessages((prev) => [...prev, {
+            role: 'ai',
+            text: `By maximising your PRSA pension contributions, you could reclaim up to **€${fmt(taxSaving)} per year** in tax relief at your marginal rate of **${calc.marginalRate * 100}%**. Your profile has been saved — taking you to your dashboard!`,
+          }])
+          setStep('done_optimise')
+          setTimeout(() => router.push('/dashboard'), 2000)
+        } else {
+          aiReply(
+            `By maximising your PRSA pension contributions, you could reclaim up to **€${fmt(taxSaving)} per year** in tax relief at your marginal rate of **${calc.marginalRate * 100}%** — money that currently goes straight to Revenue. Log in or sign up to see your full personalised strategy.`,
+            'done_optimise',
+            1400
+          )
+        }
+      })
     }
   }
 
@@ -194,22 +244,35 @@ export default function LandingChat() {
     const labels = { more: 'No, I receive more', yes: "Yes, that's about right!", less: 'No, I receive less' }
     setMessages((prev) => [...prev, { role: 'user', text: labels[choice] }])
 
-    localStorage.setItem('taxoptimus_pending_calc', JSON.stringify({
-      grossIncome: gross, taxStatus: status, age, hasMedicalCard: medicalCard,
-      prsiAnnual: calc.prsi, uscAnnual: calc.usc, incomeTaxAnnual: calc.incomeTax,
-      netMonthly: calc.netMonthly,
-    }))
-
     if (choice === 'less') {
       aiReply(
         "There may be additional deductions like workplace pension schemes. How much are you currently putting into a pension or savings each month?",
         'pension'
       )
     } else {
-      aiReply(
-        `Great — you're on the right track! Sign up to TaxOptimus to discover personalised strategies to invest your surplus, reduce your tax bill further, and build long-term wealth.`,
-        'done_positive'
-      )
+      // Save without pension data and redirect if logged in
+      setSaving(true)
+      saveCalc({
+        grossIncome: gross, taxStatus: status, age, hasMedicalCard: medicalCard,
+        prsiAnnual: calc.prsi, uscAnnual: calc.usc, incomeTaxAnnual: calc.incomeTax,
+        netMonthly: calc.netMonthly,
+      }).then((savedToDB) => {
+        setSaving(false)
+        if (savedToDB) {
+          setTyping(false)
+          setMessages((prev) => [...prev, {
+            role: 'ai',
+            text: `Great — your profile has been saved! Taking you to your dashboard now.`,
+          }])
+          setStep('done_positive')
+          setTimeout(() => router.push('/dashboard'), 1800)
+        } else {
+          aiReply(
+            `Great — you're on the right track! Sign up to TaxOptimus to discover personalised strategies to invest your surplus, reduce your tax bill further, and build long-term wealth.`,
+            'done_positive'
+          )
+        }
+      })
     }
   }
 
@@ -231,7 +294,7 @@ export default function LandingChat() {
 
         {/* Chat window */}
         <div className="bg-surface-container-lowest rounded-3xl border border-outline-variant/10 shadow-[0px_12px_40px_rgba(13,28,50,0.08)] overflow-hidden flex flex-col">
-          <div className="flex-1 p-6 space-y-5 overflow-y-auto max-h-[560px]">
+          <div ref={chatContainerRef} className="flex-1 p-6 space-y-5 overflow-y-auto max-h-[560px]">
 
             {/* Messages */}
             {messages.map((msg, i) => (
@@ -331,12 +394,11 @@ export default function LandingChat() {
             )}
 
             {/* CTA — positive outcome */}
-            {step === 'done_positive' && !typing && <ChatCTA />}
+            {step === 'done_positive' && !typing && <ChatCTA isLoggedIn={isLoggedIn} />}
 
             {/* CTA — optimise outcome */}
-            {step === 'done_optimise' && !typing && <ChatCTA />}
+            {step === 'done_optimise' && !typing && <ChatCTA isLoggedIn={isLoggedIn} />}
 
-            <div ref={bottomRef} />
           </div>
 
           {/* Euro / age input bar */}
@@ -379,7 +441,21 @@ export default function LandingChat() {
   )
 }
 
-function ChatCTA() {
+function ChatCTA({ isLoggedIn }: { isLoggedIn: boolean }) {
+  if (isLoggedIn) {
+    return (
+      <div className="pl-11 space-y-3">
+        <Link href="/dashboard">
+          <button className="signature-gradient text-white font-bold py-3.5 px-6 rounded-2xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+            <span className="material-symbols-outlined text-xl">dashboard</span>
+            Go to Dashboard
+          </button>
+        </Link>
+        <p className="text-xs text-on-surface-variant px-1">Your calculation has been saved to your account.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="pl-11 space-y-3">
       <div className="flex flex-col sm:flex-row gap-3">

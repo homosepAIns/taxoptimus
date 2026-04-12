@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter, Manrope } from 'next/font/google'
 import './globals.css'
+import ChatbotWidget from '@/components/ChatbotWidget'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' })
 const manrope = Manrope({ subsets: ['latin'], variable: '--font-manrope', display: 'swap' })
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="bg-surface text-on-surface font-body antialiased">
         {children}
+        <ChatbotWidget />
       </body>
     </html>
   )

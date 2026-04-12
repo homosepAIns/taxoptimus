@@ -4,10 +4,8 @@ import { usePathname } from 'next/navigation'
 
 const navItems = [
   { href: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
-  { href: '/activity', icon: 'receipt_long', label: 'Activity' },
-  { href: '/upload', icon: 'add_circle', label: 'Add', isAction: true },
+  { href: '/upload', icon: 'upload_file', label: 'Upload', isAction: true },
   { href: '/invest', icon: 'trending_up', label: 'Invest' },
-  { href: '/upload', icon: 'description', label: 'Files' },
 ]
 
 export default function BottomNavBar() {
