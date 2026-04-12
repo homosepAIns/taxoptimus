@@ -16,6 +16,7 @@ export type Document = {
   storage_path: string
   status: 'processing' | 'extracted' | 'error'
   uploaded_at: string
+  report_json: Record<string, unknown> | null
 }
 
 export type Transaction = {

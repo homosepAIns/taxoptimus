@@ -33,8 +33,6 @@ const CATEGORY_ICONS: Record<string, string> = {
   'Other':              'category',
 }
 
-type Mode = 'bank_statement' | 'bill'
-
 interface AnalysisResult {
   document_type: string
   document_date: string | null
@@ -56,6 +54,65 @@ function fileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+// ── Donut Chart ───────────────────────────────────────────────────────────────
+
+function DonutChart({ data, total, currency }: {
+  data: [string, number][]
+  total: number
+  currency: string
+}) {
+  const r = 70
+  const circumference = 2 * Math.PI * r
+  let cumulativePct = 0
+
+  return (
+    <div className="flex flex-col sm:flex-row items-center gap-6">
+      <div className="relative flex-shrink-0" style={{ width: 200, height: 200 }}>
+        <svg viewBox="0 0 200 200" width="200" height="200">
+          <circle cx="100" cy="100" r={r} fill="none" stroke="#e5e7eb" strokeWidth="28" />
+          {data.map(([cat, amt]) => {
+            const pct  = total > 0 ? amt / total : 0
+            const seg  = pct * circumference
+            const rot  = -90 + cumulativePct * 360
+            cumulativePct += pct
+            return (
+              <circle
+                key={cat}
+                cx="100" cy="100" r={r}
+                fill="none"
+                stroke={CATEGORY_COLORS[cat] ?? '#95A5A6'}
+                strokeWidth="28"
+                strokeDasharray={`${seg} ${circumference - seg}`}
+                strokeDashoffset={0}
+                transform={`rotate(${rot}, 100, 100)`}
+              />
+            )
+          })}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          <p className="font-extrabold text-base leading-tight text-on-surface">{currency}{fmt(total)}</p>
+          <p className="text-[10px] text-on-surface-variant mt-0.5">total</p>
+        </div>
+      </div>
+
+      <div className="flex-1 space-y-2 w-full">
+        {data.map(([cat, amt]) => {
+          const pct   = total > 0 ? (amt / total) * 100 : 0
+          const color = CATEGORY_COLORS[cat] ?? '#95A5A6'
+          return (
+            <div key={cat} className="flex items-center gap-2 text-sm">
+              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+              <span className="flex-1 font-medium text-on-surface truncate">{cat}</span>
+              <span className="text-xs text-on-surface-variant tabular-nums">{currency}{fmt(amt)}</span>
+              <span className="font-bold w-10 text-right tabular-nums" style={{ color }}>{pct.toFixed(0)}%</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function UploadPage() {
@@ -63,7 +120,6 @@ export default function UploadPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dropRef = useRef<HTMLDivElement>(null)
 
-  const [mode, setMode]           = useState<Mode>('bank_statement')
   const [file, setFile]           = useState<File | null>(null)
   const [dragging, setDragging]   = useState(false)
   const [status, setStatus]       = useState<'idle' | 'uploading' | 'analyzing' | 'done' | 'error'>('idle')
@@ -79,13 +135,16 @@ export default function UploadPage() {
       if (!session) { router.replace('/login'); return }
 
       const [docsRes, txRes] = await Promise.all([
-        supabase.from('documents').select('*').eq('user_id', session.user.id)
+        supabase.from('documents').select('id,file_name,file_size,file_type,status,uploaded_at')
+          .eq('user_id', session.user.id)
           .order('uploaded_at', { ascending: false }).limit(10),
         supabase.from('transactions').select('*').eq('user_id', session.user.id)
           .order('transaction_date', { ascending: false }).limit(100),
       ])
-      if (docsRes.data) setDocuments(docsRes.data as Document[])
-      if (txRes.data)   setRecentTx(txRes.data as Transaction[])
+      if (docsRes.error) console.error('[documents]', docsRes.error)
+      if (docsRes.data)  setDocuments(docsRes.data as Document[])
+      if (txRes.error)   console.error('[transactions]', txRes.error)
+      if (txRes.data)    setRecentTx(txRes.data as Transaction[])
     }
     init()
   }, [router])
@@ -111,7 +170,7 @@ export default function UploadPage() {
 
     const form = new FormData()
     form.append('file', file)
-    form.append('mode', mode)
+    form.append('mode', 'bank_statement')
 
     setStatus('analyzing')
     setStatusMsg('AI is reading your document…')
@@ -135,13 +194,16 @@ export default function UploadPage() {
 
       // Refresh documents and transactions lists
       const [docsRes, txRes] = await Promise.all([
-        supabase.from('documents').select('*').eq('user_id', session.user.id)
+        supabase.from('documents').select('id,file_name,file_size,file_type,status,uploaded_at')
+          .eq('user_id', session.user.id)
           .order('uploaded_at', { ascending: false }).limit(10),
         supabase.from('transactions').select('*').eq('user_id', session.user.id)
           .order('transaction_date', { ascending: false }).limit(100),
       ])
-      if (docsRes.data) setDocuments(docsRes.data as Document[])
-      if (txRes.data)   setRecentTx(txRes.data as Transaction[])
+      if (docsRes.error) console.error('[documents]', docsRes.error)
+      if (docsRes.data)  setDocuments(docsRes.data as Document[])
+      if (txRes.error)   console.error('[transactions]', txRes.error)
+      if (txRes.data)    setRecentTx(txRes.data as Transaction[])
     } catch (err) {
       setStatus('error')
       setStatusMsg(String(err))
@@ -163,24 +225,6 @@ export default function UploadPage() {
         <section>
           <h1 className="font-headline font-extrabold text-4xl mb-2 tracking-tight">Upload Document</h1>
           <p className="text-on-surface-variant mb-8">Upload a bank statement or bill — our AI extracts every transaction automatically.</p>
-
-          {/* Mode toggle */}
-          <div className="flex gap-3 mb-6">
-            {([['bank_statement', 'account_balance', 'Bank Statement'], ['bill', 'receipt_long', 'Bill / Receipt']] as const).map(([val, icon, label]) => (
-              <button
-                key={val}
-                onClick={() => setMode(val)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all ${
-                  mode === val
-                    ? 'bg-primary text-white shadow-md'
-                    : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high border border-outline-variant/20'
-                }`}
-              >
-                <span className="material-symbols-outlined text-base">{icon}</span>
-                {label}
-              </button>
-            ))}
-          </div>
 
           {/* Drop zone */}
           <div
@@ -279,38 +323,13 @@ export default function UploadPage() {
 
             {/* Spending by Category */}
             <div className="bg-surface-container-lowest rounded-2xl p-6 border border-outline-variant/10">
-              <h3 className="font-bold text-lg mb-5 uppercase tracking-widest text-xs text-on-surface-variant">Spending by Category</h3>
+              <h3 className="uppercase tracking-widest text-xs font-bold text-on-surface-variant mb-6">Spending by Category</h3>
               {activeResultCats.length > 0 ? (
-                <div className="space-y-3">
-                  {activeResultCats.map(([cat, amt]) => {
-                    const pct = result.total_amount > 0 ? (amt / result.total_amount) * 100 : 0
-                    const color = CATEGORY_COLORS[cat] ?? '#95A5A6'
-                    const barFilled = Math.round(pct / 5) // up to 20 blocks
-                    return (
-                      <div key={cat} className="flex items-center gap-3 text-sm">
-                        <span
-                          className="w-44 flex-shrink-0 font-medium truncate text-on-surface"
-                          style={{ color }}
-                        >{cat}</span>
-                        <span className="w-28 flex-shrink-0 font-bold text-on-surface tabular-nums text-right">
-                          {result.currency}{fmt(amt)}
-                        </span>
-                        <div className="flex-1 h-2 bg-surface-container-low rounded-full overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
-                        </div>
-                        <span className="w-12 flex-shrink-0 text-right text-on-surface-variant tabular-nums">
-                          {pct.toFixed(1)}%
-                        </span>
-                      </div>
-                    )
-                  })}
-                  <div className="flex items-center gap-3 text-sm border-t border-outline-variant/20 pt-3 mt-1">
-                    <span className="w-44 flex-shrink-0 font-extrabold text-on-surface uppercase tracking-wide text-xs">Total</span>
-                    <span className="w-28 flex-shrink-0 font-extrabold text-on-surface tabular-nums text-right">
-                      {result.currency}{fmt(result.total_amount)}
-                    </span>
-                  </div>
-                </div>
+                <DonutChart
+                  data={activeResultCats}
+                  total={result.total_amount}
+                  currency={result.currency}
+                />
               ) : (
                 <p className="text-on-surface-variant text-sm">No category data available.</p>
               )}
@@ -379,42 +398,6 @@ export default function UploadPage() {
           </section>
         )}
 
-        {/* ── Uploaded Files ── */}
-        <section className="space-y-5">
-          <h2 className="font-headline font-bold text-2xl">Uploaded Files</h2>
-          {documents.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {documents.map(doc => (
-                <div key={doc.id} className="bg-surface-container-lowest p-4 rounded-2xl flex items-center gap-4 border border-outline-variant/10">
-                  <div className="w-11 h-11 bg-surface-container-high rounded-xl flex items-center justify-center text-primary flex-shrink-0">
-                    <span className="material-symbols-outlined">
-                      {doc.file_type?.includes('pdf') ? 'picture_as_pdf' : 'image'}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-on-surface truncate" title={doc.file_name}>{doc.file_name}</p>
-                    <p className="text-xs text-on-surface-variant mt-0.5">
-                      {new Date(doc.uploaded_at).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </p>
-                    <p className="text-xs text-on-surface-variant">{fileSize(doc.file_size)}</p>
-                  </div>
-                  <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full flex-shrink-0 ${
-                    doc.status === 'extracted' ? 'bg-primary-container/20 text-primary' :
-                    doc.status === 'error'     ? 'bg-error-container/20 text-error' :
-                                                 'bg-surface-container-high text-on-surface-variant'
-                  }`}>
-                    {doc.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-surface-container-lowest rounded-2xl p-8 text-center border border-outline-variant/10">
-              <span className="material-symbols-outlined text-4xl text-on-surface-variant/30 mb-3 block">folder_open</span>
-              <p className="text-on-surface-variant text-sm">No documents uploaded yet</p>
-            </div>
-          )}
-        </section>
 
       </main>
 

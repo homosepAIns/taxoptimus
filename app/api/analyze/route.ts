@@ -124,9 +124,12 @@ export async function POST(req: NextRequest) {
       await supabase.from('transactions').insert(txRows)
     }
 
-    // 6. Mark document as extracted
+    // 6. Mark document as extracted and store the report JSON
     if (docRow?.id) {
-      await supabase.from('documents').update({ status: 'extracted' }).eq('id', docRow.id)
+      await supabase.from('documents').update({
+        status:      'extracted',
+        report_json: result,
+      }).eq('id', docRow.id)
     }
 
     return NextResponse.json({ ...result, document_id: docRow?.id })
