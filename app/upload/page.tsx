@@ -135,7 +135,7 @@ export default function UploadPage() {
       if (!session) { router.replace('/login'); return }
 
       const [docsRes, txRes] = await Promise.all([
-        supabase.from('documents').select('id,file_name,file_size,file_type,status,uploaded_at')
+        supabase.from('documents').select('id,file_name,file_size,file_type,status,uploaded_at,report_json')
           .eq('user_id', session.user.id)
           .order('uploaded_at', { ascending: false }).limit(10),
         supabase.from('transactions').select('*').eq('user_id', session.user.id)
@@ -194,7 +194,7 @@ export default function UploadPage() {
 
       // Refresh documents and transactions lists
       const [docsRes, txRes] = await Promise.all([
-        supabase.from('documents').select('id,file_name,file_size,file_type,status,uploaded_at')
+        supabase.from('documents').select('id,file_name,file_size,file_type,status,uploaded_at,report_json')
           .eq('user_id', session.user.id)
           .order('uploaded_at', { ascending: false }).limit(10),
         supabase.from('transactions').select('*').eq('user_id', session.user.id)
@@ -208,6 +208,14 @@ export default function UploadPage() {
       setStatus('error')
       setStatusMsg(String(err))
     }
+  }
+
+  function handleOpenDoc(doc: Document) {
+    if (!doc.report_json) return
+    setResult(doc.report_json as unknown as AnalysisResult)
+    setStatus('done')
+    setStatusMsg(`Loaded from ${doc.file_name}`)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   // Active categories in the current result
@@ -398,6 +406,53 @@ export default function UploadPage() {
           </section>
         )}
 
+
+        {/* ── Recent Files ── */}
+        {documents.length > 0 && (
+          <section className="space-y-4">
+            <h2 className="font-headline font-bold text-2xl">Recent Files</h2>
+            <div className="space-y-2">
+              {documents.map(doc => (
+                <button
+                  key={doc.id}
+                  onClick={() => handleOpenDoc(doc)}
+                  disabled={!doc.report_json}
+                  className="w-full bg-surface-container-lowest rounded-2xl border border-outline-variant/10 px-5 py-4 flex items-center gap-4 hover:bg-surface-container-low hover:border-primary/30 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed group"
+                >
+                  <div className="w-10 h-10 bg-surface-container-high rounded-xl flex items-center justify-center text-primary flex-shrink-0 group-hover:bg-primary/10 transition-colors">
+                    <span className="material-symbols-outlined text-base">
+                      {doc.file_type?.includes('pdf') ? 'picture_as_pdf' : 'image'}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-on-surface truncate">{doc.file_name}</p>
+                    <p className="text-xs text-on-surface-variant mt-0.5">
+                      {new Date(doc.uploaded_at).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {' · '}
+                      {new Date(doc.uploaded_at).toLocaleTimeString('en-IE', { hour: '2-digit', minute: '2-digit' })}
+                      {' · '}
+                      {fileSize(doc.file_size)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full ${
+                      doc.status === 'extracted' ? 'bg-primary-container/20 text-primary' :
+                      doc.status === 'error'     ? 'bg-error-container/20 text-error' :
+                                                   'bg-surface-container-high text-on-surface-variant'
+                    }`}>
+                      {doc.status}
+                    </span>
+                    {doc.report_json && (
+                      <span className="material-symbols-outlined text-base text-on-surface-variant group-hover:text-primary transition-colors">
+                        chevron_right
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
       </main>
 

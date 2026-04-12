@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   const isPdf  = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
 
   // 3. Insert document row (status = processing)
-  const { data: docRow } = await supabase.from('documents').insert({
+  const { data: docRow, error: insertError } = await supabase.from('documents').insert({
     user_id:      user.id,
     file_name:    file.name,
     file_size:    file.size,
@@ -61,6 +61,12 @@ export async function POST(req: NextRequest) {
     storage_path: '',
     status:       'processing',
   }).select().single()
+
+  if (insertError) {
+    console.error('[analyze] INSERT failed:', JSON.stringify(insertError))
+    return NextResponse.json({ error: 'Failed to create document record', detail: insertError.message }, { status: 500 })
+  }
+  console.log('[analyze] Document inserted:', docRow?.id)
 
   // 4. Write file to temp dir, call Python script, read JSON back
   let tmpDir: string | null = null
@@ -126,10 +132,12 @@ export async function POST(req: NextRequest) {
 
     // 6. Mark document as extracted and store the report JSON
     if (docRow?.id) {
-      await supabase.from('documents').update({
+      const { error: updateError } = await supabase.from('documents').update({
         status:      'extracted',
         report_json: result,
       }).eq('id', docRow.id)
+      if (updateError) console.error('[analyze] UPDATE failed:', JSON.stringify(updateError))
+      else console.log('[analyze] Document updated to extracted')
     }
 
     return NextResponse.json({ ...result, document_id: docRow?.id })
