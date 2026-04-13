@@ -58,6 +58,20 @@ export type AssetAllocation = {
 
 export type TaxStatus = 'single' | 'married-one' | 'married-two' | 'one-parent'
 
+export type TaxProfile = {
+  id: string
+  user_id: string
+  employment_type: 'PAYE' | 'Self-Employed'
+  remote_working_days: number
+  annual_wfh_utility_costs: number
+  annual_rent_paid: number
+  qualifying_health_expenses: number
+  bik: number
+  employer_health_premium: number
+  calc_result: Record<string, unknown> | null
+  created_at: string
+}
+
 export type IncomeProfile = {
   id: string
   user_id: string

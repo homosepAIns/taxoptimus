@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import BottomNavBar from '@/components/BottomNavBar'
 import TopAppBar from '@/components/TopAppBar'
-import { supabase, type IncomeProfile, type Transaction, type SavingsGoal } from '@/lib/supabase'
+import { supabase, type IncomeProfile, type Transaction, type SavingsGoal, type TaxProfile } from '@/lib/supabase'
 
 function fmt(n: number) {
   return n.toLocaleString('en-IE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -53,6 +53,28 @@ function Skeleton() {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
+// ── Tax Breakdown types ───────────────────────────────────────────────────────
+type CalcResult = {
+  'Core Financials': Record<string, number>
+  'Tax Deductions':  Record<string, number>
+  'Summary': {
+    'Total Tax Deduced': number
+    'Take Home CASH': number
+    'Effective Tax Rate (%)': number
+    'Marginal Tax Rate (%)': number
+  }
+}
+
+type TaxFormData = {
+  employment_type:           'PAYE' | 'Self-Employed'
+  remote_working_days:       number
+  annual_wfh_utility_costs:  number
+  annual_rent_paid:          number
+  qualifying_health_expenses: number
+  bik:                       number
+  employer_health_premium:   number
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [loading,      setLoading]      = useState(true)
@@ -60,6 +82,19 @@ export default function DashboardPage() {
   const [profile,      setProfile]      = useState<IncomeProfile | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [goals,        setGoals]        = useState<SavingsGoal[]>([])
+  const [taxProfile,   setTaxProfile]   = useState<TaxProfile | null>(null)
+  const [calcResult,   setCalcResult]   = useState<CalcResult | null>(null)
+  const [calcLoading,  setCalcLoading]  = useState(false)
+  const [calcError,    setCalcError]    = useState('')
+  const [formData,     setFormData]     = useState<TaxFormData>({
+    employment_type:            'PAYE',
+    remote_working_days:        0,
+    annual_wfh_utility_costs:   0,
+    annual_rent_paid:           0,
+    qualifying_health_expenses: 0,
+    bik:                        0,
+    employer_health_premium:    0,
+  })
 
   useEffect(() => {
     async function load() {
@@ -92,7 +127,7 @@ export default function DashboardPage() {
         localStorage.removeItem('taxoptimus_pending_calc')
       }
 
-      const [profileRes, txRes, goalsRes] = await Promise.all([
+      const [profileRes, txRes, goalsRes, taxProfileRes] = await Promise.all([
         supabase.from('income_profiles')
           .select('*').eq('user_id', user.id)
           .order('created_at', { ascending: false }).limit(1).maybeSingle(),
@@ -102,11 +137,34 @@ export default function DashboardPage() {
         supabase.from('savings_goals')
           .select('*').eq('user_id', user.id)
           .order('created_at', { ascending: true }),
+        supabase.from('tax_profiles')
+          .select('*').eq('user_id', user.id)
+          .order('created_at', { ascending: false }).limit(1).maybeSingle(),
       ])
 
-      if (profileRes.data) setProfile(profileRes.data as IncomeProfile)
-      if (txRes.data)      setTransactions(txRes.data as Transaction[])
-      if (goalsRes.data)   setGoals(goalsRes.data as SavingsGoal[])
+      const incomeProfile = profileRes.data as IncomeProfile | null
+      const existingTaxProfile = taxProfileRes.data as TaxProfile | null
+
+      if (incomeProfile)      setProfile(incomeProfile)
+      if (txRes.data)         setTransactions(txRes.data as Transaction[])
+      if (goalsRes.data)      setGoals(goalsRes.data as SavingsGoal[])
+      if (existingTaxProfile) {
+        setTaxProfile(existingTaxProfile)
+        setFormData({
+          employment_type:            existingTaxProfile.employment_type,
+          remote_working_days:        existingTaxProfile.remote_working_days,
+          annual_wfh_utility_costs:   existingTaxProfile.annual_wfh_utility_costs,
+          annual_rent_paid:           existingTaxProfile.annual_rent_paid,
+          qualifying_health_expenses: existingTaxProfile.qualifying_health_expenses,
+          bik:                        existingTaxProfile.bik,
+          employer_health_premium:    existingTaxProfile.employer_health_premium,
+        })
+        // Use stored calc result — no API call needed
+        if (existingTaxProfile.calc_result) {
+          setCalcResult(existingTaxProfile.calc_result as unknown as CalcResult)
+        }
+      }
+
       setLoading(false)
     }
     load()
@@ -139,6 +197,51 @@ export default function DashboardPage() {
   const incomeTaxPct  = gross > 0 ? ((profile?.income_tax_annual ?? 0) / gross) * 100 : 0
   const uscPct        = gross > 0 ? ((profile?.usc_annual        ?? 0) / gross) * 100 : 0
   const prsiPct       = gross > 0 ? ((profile?.prsi_annual       ?? 0) / gross) * 100 : 0
+
+  async function handleTaxFormSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!profile) return
+    setCalcLoading(true)
+    setCalcError('')
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session!.user.id
+
+    try {
+      // 1. Calculate first
+      const res = await fetch('/api/tax/calculate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({
+          gross_income:               profile.gross_income,
+          age:                        profile.age,
+          tax_status:                 profile.tax_status,
+          has_medical_card:           profile.has_medical_card,
+          ...formData,
+        }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      const data = await res.json()
+      const newCalcResult: CalcResult = data.calculation
+
+      // 2. Persist form inputs + calc result together
+      const payload = { user_id: userId, ...formData, calc_result: newCalcResult }
+      const { data: saved } = await supabase
+        .from('tax_profiles')
+        .upsert(payload, { onConflict: 'user_id' })
+        .select().single()
+
+      if (saved) setTaxProfile(saved as TaxProfile)
+      setCalcResult(newCalcResult)
+          } catch (err) {
+      setCalcError('Calculation failed. Please try again.')
+      console.error(err)
+    }
+    setCalcLoading(false)
+  }
 
   if (loading) return <Skeleton />
 
@@ -258,73 +361,246 @@ export default function DashboardPage() {
             <div className="flex items-start justify-between mb-6">
               <div>
                 <h3 className="text-2xl font-bold mb-1">Your Tax Breakdown</h3>
-                <p className="text-on-surface-variant text-sm">2024 Irish tax · based on your profile</p>
+                <p className="text-on-surface-variant text-sm">2026 Irish tax · based on your profile</p>
               </div>
-              <span className="material-symbols-outlined text-primary text-2xl" style={{ fontVariationSettings: '"FILL" 1' }}>receipt_long</span>
+              <div className="flex items-center gap-2">
+                {calcResult && (
+                  <button
+                    onClick={() => setCalcResult(null)}
+                    className="text-xs text-on-surface-variant hover:text-primary transition-colors flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-base">edit</span>
+                    Edit
+                  </button>
+                )}
+                <span className="material-symbols-outlined text-primary text-2xl" style={{ fontVariationSettings: '"FILL" 1' }}>receipt_long</span>
+              </div>
             </div>
 
-            {profile ? (
-              <>
-                {/* Stacked bar */}
-                <div className="h-5 rounded-full overflow-hidden flex gap-px mb-5">
-                  <div className="bg-error/70 rounded-l-full"     style={{ width: `${incomeTaxPct}%` }} title="Income Tax" />
-                  <div className="bg-orange-400/70"                style={{ width: `${uscPct}%` }}      title="USC" />
-                  <div className="bg-tertiary/70"                  style={{ width: `${prsiPct}%` }}     title="PRSI" />
-                  <div className="bg-primary rounded-r-full flex-1"                                     title="Take-home" />
-                </div>
-                <div className="flex gap-3 text-[11px] mb-6 flex-wrap">
-                  {[
-                    { label: 'Income Tax', color: 'bg-error/70' },
-                    { label: 'USC',        color: 'bg-orange-400/70' },
-                    { label: 'PRSI',       color: 'bg-tertiary/70' },
-                    { label: 'Take-home',  color: 'bg-primary' },
-                  ].map(l => (
-                    <span key={l.label} className="flex items-center gap-1.5 text-on-surface-variant">
-                      <span className={`w-2.5 h-2.5 rounded-sm ${l.color}`} />
-                      {l.label}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-6">
-                  {[
-                    { label: 'Gross Income',     value: `€${fmt(gross)}/yr`,                       cls: '' },
-                    { label: 'Income Tax',        value: `€${fmt(profile.income_tax_annual)}/yr`,   cls: 'text-error' },
-                    { label: 'USC',               value: `€${fmt(profile.usc_annual)}/yr`,          cls: 'text-on-surface-variant' },
-                    { label: 'PRSI',              value: `€${fmt(profile.prsi_annual)}/yr`,         cls: 'text-on-surface-variant' },
-                    { label: 'Total Deductions',  value: `€${fmt(taxTotal)}/yr`,                    cls: 'text-error font-extrabold' },
-                    { label: 'Net Take-Home',     value: `€${fmt(profile.net_monthly)}/mo`,         cls: 'text-primary font-extrabold' },
-                  ].map(item => (
-                    <div key={item.label}>
-                      <p className="text-xs text-on-surface-variant uppercase tracking-wide mb-0.5">{item.label}</p>
-                      <p className={`font-bold text-base ${item.cls}`}>{item.value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {profile.potential_annual_saving && profile.potential_annual_saving > 0 && (
-                  <div className="bg-surface-container-lowest p-4 rounded-xl flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary-container/20 rounded-full flex items-center justify-center text-primary flex-shrink-0">
-                      <span className="material-symbols-outlined">lightbulb</span>
-                    </div>
-                    <p className="text-sm text-on-surface-variant">
-                      A pension of <span className="font-bold text-on-surface">€{fmt(profile.pension_monthly ?? 0)}/month</span> could save you{' '}
-                      <span className="font-bold text-primary">€{fmt(profile.potential_annual_saving)}/year</span> in tax relief.
-                    </p>
-                  </div>
-                )}
-              </>
-            ) : (
+            {/* State: no income profile */}
+            {!profile && (
               <div className="flex flex-col items-center justify-center py-8 gap-4 text-center">
                 <span className="material-symbols-outlined text-5xl text-on-surface-variant/30">receipt_long</span>
                 <p className="text-on-surface-variant text-sm">Complete the free tax calculator to see your breakdown</p>
-                <Link href="/calculator">
+                <Link href="/">
                   <button className="signature-gradient text-white font-bold py-2.5 px-5 rounded-xl text-sm">
                     Go to Calculator
                   </button>
                 </Link>
               </div>
             )}
+
+            {/* State: income profile exists but no tax profile yet (or editing) */}
+            {profile && !calcResult && !calcLoading && (
+              <form onSubmit={handleTaxFormSubmit} className="space-y-5">
+                <div className="bg-primary-container/20 rounded-xl p-4 flex gap-3 items-start mb-2">
+                  <span className="material-symbols-outlined text-primary mt-0.5 flex-shrink-0">info</span>
+                  <p className="text-sm text-on-surface-variant leading-relaxed">
+                    We need a few more details to calculate your full Irish tax picture and spot reliefs you may be missing.
+                  </p>
+                </div>
+
+                {/* Employment type */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium text-on-surface-variant">Employment type</label>
+                  <div className="flex gap-3">
+                    {(['PAYE', 'Self-Employed'] as const).map(t => (
+                      <button
+                        key={t} type="button"
+                        onClick={() => setFormData(d => ({ ...d, employment_type: t }))}
+                        className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-colors ${formData.employment_type === t ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface hover:bg-surface-container-high'}`}
+                      >{t}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* WFH */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-on-surface-variant">WFH days / year</label>
+                    <input type="number" min={0} max={260} placeholder="0"
+                      value={formData.remote_working_days || ''}
+                      onChange={e => setFormData(d => ({ ...d, remote_working_days: Number(e.target.value) }))}
+                      className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-3 px-4 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                  {formData.remote_working_days > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-sm font-medium text-on-surface-variant">Utility costs / yr (€)</label>
+                      <input type="number" min={0} placeholder="e.g. 1800"
+                        value={formData.annual_wfh_utility_costs || ''}
+                        onChange={e => setFormData(d => ({ ...d, annual_wfh_utility_costs: Number(e.target.value) }))}
+                        className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-3 px-4 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Rent + Health */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-on-surface-variant">Annual rent paid (€)</label>
+                    <input type="number" min={0} placeholder="0"
+                      value={formData.annual_rent_paid || ''}
+                      onChange={e => setFormData(d => ({ ...d, annual_rent_paid: Number(e.target.value) }))}
+                      className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-3 px-4 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-on-surface-variant">Health expenses (€)</label>
+                    <input type="number" min={0} placeholder="0"
+                      value={formData.qualifying_health_expenses || ''}
+                      onChange={e => setFormData(d => ({ ...d, qualifying_health_expenses: Number(e.target.value) }))}
+                      className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-3 px-4 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                </div>
+
+                {/* BIK + Employer health */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-on-surface-variant">Benefits in Kind (€)</label>
+                    <input type="number" min={0} placeholder="0"
+                      value={formData.bik || ''}
+                      onChange={e => setFormData(d => ({ ...d, bik: Number(e.target.value) }))}
+                      className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-3 px-4 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-on-surface-variant">Employer health ins. (€)</label>
+                    <input type="number" min={0} placeholder="0"
+                      value={formData.employer_health_premium || ''}
+                      onChange={e => setFormData(d => ({ ...d, employer_health_premium: Number(e.target.value) }))}
+                      className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-3 px-4 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                </div>
+
+                {calcError && (
+                  <p className="text-sm text-error flex items-center gap-2">
+                    <span className="material-symbols-outlined text-base">error</span>
+                    {calcError}
+                  </p>
+                )}
+
+                <button type="submit"
+                  className="w-full signature-gradient text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+                >
+                  Show My Full Breakdown
+                  <span className="material-symbols-outlined">arrow_forward</span>
+                </button>
+              </form>
+            )}
+
+            {/* State: calculating */}
+            {profile && calcLoading && (
+              <div className="flex flex-col items-center justify-center py-12 gap-4">
+                <span className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                <p className="text-on-surface-variant text-sm">Calculating your tax position…</p>
+              </div>
+            )}
+
+            {/* State: result ready */}
+            {profile && calcResult && !calcLoading && (() => {
+              const summary = calcResult['Summary']
+              const deductions = calcResult['Tax Deductions']
+              const effectiveRate = summary['Effective Tax Rate (%)']
+              const marginalRate  = summary['Marginal Tax Rate (%)']
+              const totalTax      = summary['Total Tax Deduced']
+              const takeHome      = summary['Take Home CASH']
+              const netPaye       = deductions['Net Income Tax (PAYE)']
+              const usc           = deductions['USC']
+              const prsi          = deductions['PRSI']
+              const rentCredit    = deductions['Rent Tax Credit (20%)']
+              const wfhRelief     = (deductions['Income Protection Relief (20%)'] ?? 0) // proxy; actual WFH is in credits
+              const healthRelief  = deductions['Health Expenses Relief (20%)'] ?? 0
+              const incomeTaxPctR = gross > 0 ? (netPaye / gross) * 100 : 0
+              const uscPctR       = gross > 0 ? (usc    / gross) * 100 : 0
+              const prsiPctR      = gross > 0 ? (prsi   / gross) * 100 : 0
+
+              return (
+                <>
+                  {/* Rate pills */}
+                  <div className="flex gap-4 mb-6">
+                    <div className="flex-1 bg-surface-container-lowest rounded-xl p-4 text-center">
+                      <p className="text-xs text-on-surface-variant uppercase tracking-wide mb-1">Effective Rate</p>
+                      <p className="text-3xl font-extrabold text-error">{effectiveRate.toFixed(1)}%</p>
+                    </div>
+                    <div className="flex-1 bg-surface-container-lowest rounded-xl p-4 text-center">
+                      <p className="text-xs text-on-surface-variant uppercase tracking-wide mb-1">Marginal Rate</p>
+                      <p className="text-3xl font-extrabold text-orange-500">{marginalRate.toFixed(1)}%</p>
+                    </div>
+                    <div className="flex-1 bg-surface-container-lowest rounded-xl p-4 text-center">
+                      <p className="text-xs text-on-surface-variant uppercase tracking-wide mb-1">Total Tax</p>
+                      <p className="text-3xl font-extrabold text-on-surface">€{fmt(totalTax)}</p>
+                    </div>
+                  </div>
+
+                  {/* Stacked bar */}
+                  <div className="h-4 rounded-full overflow-hidden flex gap-px mb-4">
+                    <div className="bg-error/70 rounded-l-full"  style={{ width: `${incomeTaxPctR}%` }} title="Income Tax" />
+                    <div className="bg-orange-400/70"             style={{ width: `${uscPctR}%` }}      title="USC" />
+                    <div className="bg-tertiary/70"               style={{ width: `${prsiPctR}%` }}     title="PRSI" />
+                    <div className="bg-primary rounded-r-full flex-1"                                   title="Take-home" />
+                  </div>
+                  <div className="flex gap-3 text-[11px] mb-6 flex-wrap">
+                    {[
+                      { label: 'Income Tax', color: 'bg-error/70' },
+                      { label: 'USC',        color: 'bg-orange-400/70' },
+                      { label: 'PRSI',       color: 'bg-tertiary/70' },
+                      { label: 'Take-home',  color: 'bg-primary' },
+                    ].map(l => (
+                      <span key={l.label} className="flex items-center gap-1.5 text-on-surface-variant">
+                        <span className={`w-2.5 h-2.5 rounded-sm ${l.color}`} />
+                        {l.label}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Key numbers grid */}
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-6">
+                    {[
+                      { label: 'Gross Income',   value: `€${fmt(gross)}/yr`,        cls: '' },
+                      { label: 'Income Tax',     value: `€${fmt(netPaye)}/yr`,       cls: 'text-error' },
+                      { label: 'USC',            value: `€${fmt(usc)}/yr`,           cls: 'text-orange-500' },
+                      { label: 'PRSI',           value: `€${fmt(prsi)}/yr`,          cls: 'text-on-surface-variant' },
+                      { label: 'Total Tax',      value: `€${fmt(totalTax)}/yr`,      cls: 'text-error font-extrabold' },
+                      { label: 'Take-Home',      value: `€${fmt(takeHome / 12)}/mo`, cls: 'text-primary font-extrabold' },
+                    ].map(item => (
+                      <div key={item.label}>
+                        <p className="text-xs text-on-surface-variant uppercase tracking-wide mb-0.5">{item.label}</p>
+                        <p className={`font-bold text-base ${item.cls}`}>{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Credits applied */}
+                  {(rentCredit > 0 || healthRelief > 0) && (
+                    <div className="bg-surface-container-lowest rounded-xl p-4 space-y-2">
+                      <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-3">Credits Applied</p>
+                      {rentCredit > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-on-surface-variant flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-primary text-base">check_circle</span>
+                            Rent Tax Credit
+                          </span>
+                          <span className="font-bold text-primary">−€{fmt(rentCredit)}</span>
+                        </div>
+                      )}
+                      {healthRelief > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-on-surface-variant flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-primary text-base">check_circle</span>
+                            Health Relief (20%)
+                          </span>
+                          <span className="font-bold text-primary">−€{fmt(healthRelief)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </div>
 
           {/* ── Expense Categories ── */}
