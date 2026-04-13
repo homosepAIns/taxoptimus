@@ -127,7 +127,7 @@ export default function LandingPage() {
         {[
           { href: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
           { href: '/upload', icon: 'upload_file', label: 'Upload', action: true },
-          { href: '/invest', icon: 'trending_up', label: 'Invest' },
+          { href: '/optimize-tax', icon: 'trending_up', label: 'Optimize' },
         ].map((item) => (
           <Link
             key={`${item.href}-${item.label}`}

@@ -25,7 +25,7 @@ const RESPONSES: [RegExp, string][] = [
   [/married|spouse|partner/i,   "Married couples can transfer unused standard rate band and tax credits between spouses. If one partner earns less, the higher earner can claim their unused €1,875 credit — worth up to €750/year."],
   [/rent|housing|landlord/i,    "The Rent Tax Credit is worth €750 per year (€1,500 for couples). It applies to private renters and can be claimed on Revenue's myAccount for current and prior years."],
   [/upload|statement|receipt/i, "Head to the Upload page to drop in your bank statements or receipts. Our AI extracts transactions, categorises spending, and flags potential tax claims automatically."],
-  [/invest|etf|stock|fund/i,    "Check out the Invest page for a personalised Irish tax-efficient allocation — typically a split across PRSA pension, Irish-domiciled ETFs, and State Prize Bonds (which are 100% tax-free on winnings)."],
+  [/invest|etf|stock|fund/i,    "Check out the Optimize Tax page for a personalised Irish tax-efficient allocation — typically a split across PRSA pension, Irish-domiciled ETFs, and State Prize Bonds (which are 100% tax-free on winnings)."],
   [/hello|hi |hey/i,            "Hello! 👋 How can I help you with your Irish taxes today?"],
 ]
 

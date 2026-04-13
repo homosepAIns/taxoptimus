@@ -29,6 +29,8 @@ class UserProfile(BaseModel):
     flat_rate_expense: float = 0.0
     nursing_home_fees: float = 0.0
     employee_health_insurance: float = 0.0
+    eiis_max_willing: float = 0.0
+    deeds_max_willing: float = 0.0
 
 class Investments(BaseModel):
     """Source of truth for Investment data."""
@@ -66,6 +68,8 @@ class OptimizationRequest(BaseModel):
     utility_weight_cycle: float = 0.85
     utility_weight_travel: float = 0.95
     utility_weight_income_protection: float = 0.0
+    utility_weight_eiis: float = 1.1
+    utility_weight_deeds: float = 1.0
 
 class OptimizationResponse(BaseModel):
     mode: str = "optimize"

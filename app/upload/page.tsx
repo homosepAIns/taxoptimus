@@ -44,8 +44,8 @@ interface AnalysisResult {
   document_id?: string
 }
 
-function fmt(n: number) {
-  return n.toLocaleString('en-IE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+function fmt(n: number | null | undefined) {
+  return (n || 0).toLocaleString('en-IE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function fileSize(bytes: number) {

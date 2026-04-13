@@ -6,8 +6,8 @@ import BottomNavBar from '@/components/BottomNavBar'
 import TopAppBar from '@/components/TopAppBar'
 import { supabase, type IncomeProfile, type Transaction, type SavingsGoal, type TaxProfile } from '@/lib/supabase'
 
-function fmt(n: number) {
-  return n.toLocaleString('en-IE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+function fmt(n: number | null | undefined) {
+  return (n || 0).toLocaleString('en-IE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
 
 const TAX_STATUS_LABELS: Record<string, string> = {
@@ -791,7 +791,7 @@ export default function DashboardPage() {
                         </p>
                       </div>
 
-                      <Link href="/invest" className="block">
+                      <Link href="/optimize-tax" className="block">
                         <button className="w-full sm:w-auto signature-gradient text-white font-black py-5 px-10 rounded-2xl shadow-xl shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-3 text-xl">
                           <span className="material-symbols-outlined">auto_fix_high</span>
                           Start Optimization

@@ -66,6 +66,8 @@ export async function POST(req: NextRequest) {
         flat_rate_expense: Number(tax.flat_rate_expense || 0),
         nursing_home_fees: Number(tax.nursing_home_fees || 0),
         employee_health_insurance: Number(tax.employee_health_insurance || 0),
+        eiis_max_willing: Number(tax.eiis_max_willing ?? 0),
+        deeds_max_willing: Number(tax.deeds_max_willing ?? 0),
       },
       investments: {
         pension_contribution: Number(tax.pension_contribution || 0),

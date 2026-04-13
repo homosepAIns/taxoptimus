@@ -99,7 +99,7 @@ export default function TopAppBar() {
                       Dashboard
                     </button>
                   </Link>
-                  <Link href="/invest" onClick={() => setMenuOpen(false)}>
+                  <Link href="/optimize-tax" onClick={() => setMenuOpen(false)}>
                     <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-on-surface hover:bg-surface-container-low transition-colors text-left">
                       <span className="material-symbols-outlined text-on-surface-variant text-xl">trending_up</span>
                       My Investments

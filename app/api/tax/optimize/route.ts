@@ -40,6 +40,8 @@ export async function POST(req: NextRequest) {
     const tax = taxRes.data || {}
     const { marital_status, claims_single_child_carer } = toMaritalStatus(inc.tax_status)
 
+    const reqBody = await req.json().catch(() => ({}))
+    
     // 2. Prepare the payload for FastAPI
     const payload = {
       profile: {
@@ -69,6 +71,8 @@ export async function POST(req: NextRequest) {
         flat_rate_expense: Number(tax.flat_rate_expense || 0),
         nursing_home_fees: Number(tax.nursing_home_fees || 0),
         employee_health_insurance: Number(tax.employee_health_insurance || 0),
+        eiis_max_willing: Number(tax.eiis_max_willing ?? 0),
+        deeds_max_willing: Number(tax.deeds_max_willing ?? 0),
       },
       investments: {
         pension_contribution: Number(tax.pension_contribution || 0),
@@ -82,11 +86,13 @@ export async function POST(req: NextRequest) {
         eiis_investment: Number(tax.eiis_investment || 0),
         deeds_of_covenant: Number(tax.deeds_of_covenant || 0),
       },
-      required_liquid_cash: Number(tax.required_liquid_cash || 0),
+      required_liquid_cash: Number(reqBody.required_liquid_cash ?? tax.required_liquid_cash ?? 0),
       utility_weight_pension: Number(tax.weight_pension ?? 1.2),
       utility_weight_cycle: Number(tax.weight_cycle ?? 0.85),
       utility_weight_travel: Number(tax.weight_travel ?? 0.95),
-      utility_weight_income_protection: Number(tax.weight_ip ?? 0.0)
+      utility_weight_income_protection: Number(tax.weight_ip ?? 0.0),
+      utility_weight_eiis: Number(tax.weight_eiis ?? 1.1),
+      utility_weight_deeds: Number(tax.weight_deeds ?? 1.0)
     }
 
     // 3. Call Python Optimizer

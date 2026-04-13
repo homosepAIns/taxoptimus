@@ -3,7 +3,7 @@
 
 create table if not exists tax_profiles (
   id                          uuid primary key default gen_random_uuid(),
-  user_id                     uuid references auth.users(id) on delete cascade not null,
+  user_id                     uuid references auth.users(id) on delete cascade not null unique,
   employment_type             text not null default 'PAYE',
   remote_working_days         int  not null default 0,
   annual_wfh_utility_costs    numeric not null default 0,

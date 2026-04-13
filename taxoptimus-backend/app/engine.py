@@ -141,40 +141,51 @@ class IrishTaxCalculator:
         return min(rent_credit_cap, profile.annual_rent_paid * 0.20)
 
     @staticmethod
-    def get_tax_credits(profile: UserProfile, investments: Investments, cfg: dict) -> float:
+    def get_tax_credits(profile: UserProfile, investments: Investments, cfg: dict) -> tuple[float, dict]:
         """Aggregates all personal, lifestyle, and expense-based tax credits."""
-        credits = cfg["PERSONAL_CREDIT"]
+        breakdown = {}
+        total = 0.0
+        
+        def add(name: str, value: float):
+            nonlocal total
+            if value > 0:
+                breakdown[name] = value
+                total += value
+
+        add("Personal Tax Credit", cfg["PERSONAL_CREDIT"])
         
         if profile.employment_type == "PAYE":
-            credits += cfg["EMPLOYMENT_CREDIT"]
+            add("Employee Tax Credit", cfg["EMPLOYMENT_CREDIT"])
         elif profile.employment_type == "Self-Employed":
-            credits += cfg["EARNED_INCOME_CREDIT"]
+            add("Earned Income Tax Credit", cfg["EARNED_INCOME_CREDIT"])
             
         if profile.marital_status in ["Married_1_Income", "Married_2_Incomes"]:
-            credits += cfg["PERSONAL_CREDIT"]
-            if profile.age >= 65: credits += cfg["AGE_CREDIT_MARRIED"]
-            if profile.is_blind: credits += cfg["BLIND_CREDIT_MARRIED"]
+            add("Married Tax Credit (Additional)", cfg["PERSONAL_CREDIT"])
+            if profile.age >= 65: add("Age Tax Credit", cfg["AGE_CREDIT_MARRIED"])
+            if profile.is_blind: add("Blind Tax Credit", cfg["BLIND_CREDIT_MARRIED"])
         else:
-            if profile.age >= 65: credits += cfg["AGE_CREDIT_SINGLE"]
-            if profile.is_blind: credits += cfg["BLIND_CREDIT_SINGLE"]
+            if profile.age >= 65: add("Age Tax Credit", cfg["AGE_CREDIT_SINGLE"])
+            if profile.is_blind: add("Blind Tax Credit", cfg["BLIND_CREDIT_SINGLE"])
 
-        if profile.has_incapacitated_child: credits += cfg["INCAPACITATED_CHILD_CREDIT"]
-        if profile.claims_home_carer: credits += cfg["HOME_CARER_CREDIT"]
-        if profile.claims_single_child_carer: credits += cfg["SINGLE_CHILD_CARER_CREDIT"]
-        if profile.claims_dependent_relative: credits += cfg["DEPENDENT_RELATIVE_CREDIT"]
+        if profile.has_incapacitated_child: add("Incapacitated Child Tax Credit", cfg["INCAPACITATED_CHILD_CREDIT"])
+        if profile.claims_home_carer: add("Home Carer Tax Credit", cfg["HOME_CARER_CREDIT"])
+        if profile.claims_single_child_carer: add("Single Child Carer Credit", cfg["SINGLE_CHILD_CARER_CREDIT"])
+        if profile.claims_dependent_relative: add("Dependent Relative Tax Credit", cfg["DEPENDENT_RELATIVE_CREDIT"])
         
         if 0 <= profile.widowed_years_since <= 5:
-            credits += max(0, 3600.0 - (profile.widowed_years_since * 360.0))
+            add("Widowed Parent Tax Credit", max(0, 3600.0 - (profile.widowed_years_since * 360.0)))
             
-        credits += profile.employer_health_premium * 0.20
-        credits += profile.qualifying_health_expenses * 0.20
-        credits += profile.nursing_home_fees * 0.20
-        credits += profile.employee_health_insurance * 0.20
-        credits += IrishTaxCalculator.calculate_remote_working_relief(profile)
-        credits += IrishTaxCalculator.calculate_tuition_fees_relief(profile)
-        credits += IrishTaxCalculator.calculate_income_protection_relief(profile, investments)
+        add("Employer Health Premium Relief (20%)", profile.employer_health_premium * 0.20)
+        add("Health Expenses Relief (20%)", profile.qualifying_health_expenses * 0.20)
+        add("Nursing Home Fees Relief (20%)", profile.nursing_home_fees * 0.20)
+        add("Employee Health Insurance Relief (20%)", profile.employee_health_insurance * 0.20)
+        add("Remote Working Relief", IrishTaxCalculator.calculate_remote_working_relief(profile))
+        add("Tuition Fees Relief", IrishTaxCalculator.calculate_tuition_fees_relief(profile))
+        add("Income Protection Relief (20%)", IrishTaxCalculator.calculate_income_protection_relief(profile, investments))
+        add("Miscellaneous Special Tax Credits", profile.additional_tax_credits)
+        add("Rent Tax Credit", IrishTaxCalculator._calculate_rent_credit(profile))
         
-        return credits + profile.additional_tax_credits + IrishTaxCalculator._calculate_rent_credit(profile)
+        return total, breakdown
 
     @staticmethod
     def get_max_pension_limit(profile: UserProfile) -> float:
@@ -289,14 +300,14 @@ class IrishTaxCalculator:
         return max(0, total_income - investments.pension_contribution - investments.eiis_investment - investments.deeds_of_covenant - charitable)
 
     @staticmethod
-    def calculate_net_income_tax(profile: UserProfile, investments: Investments, taxable_paye_income: float, total_income: float, cfg: dict) -> tuple[float, float, float, float]:
+    def calculate_net_income_tax(profile: UserProfile, investments: Investments, taxable_paye_income: float, total_income: float, cfg: dict) -> tuple[float, float, float, dict, float]:
         """Orchestrates gross tax, credits, and net tax liability."""
         srcop = IrishTaxCalculator.get_srcop(profile, cfg)
         gross_income_tax, marginal_income_tax_rate = IrishTaxCalculator.calculate_gross_income_tax(taxable_paye_income, srcop, cfg)
-        total_credits = IrishTaxCalculator.get_tax_credits(profile, investments, cfg)
+        total_credits, credit_dict = IrishTaxCalculator.get_tax_credits(profile, investments, cfg)
         net_income_tax = max(0, gross_income_tax - total_credits)
         net_income_tax = IrishTaxCalculator.enforce_age_exemption(profile, total_income, net_income_tax)
-        return gross_income_tax, net_income_tax, total_credits, marginal_income_tax_rate
+        return gross_income_tax, net_income_tax, total_credits, credit_dict, marginal_income_tax_rate
 
     @staticmethod
     def calculate_take_home(profile: UserProfile, investments: Investments, taxable_base: float, total_taxes: float) -> float:
@@ -320,8 +331,26 @@ class IrishTaxCalculator:
         return (total_taxes / total_gross_inflow) * 100 if total_gross_inflow > 0 else 0.0
 
     @staticmethod
-    def build_result_dict(profile: UserProfile, investments: Investments, gross_income_tax: float, total_credits: float, net_income_tax: float, usc: float, prsi: float, total_taxes: float, take_home: float, effective_rate: float, marginal_overall_rate: float) -> dict:
+    def build_result_dict(profile: UserProfile, investments: Investments, gross_income_tax: float, total_credits: float, credit_dict: dict, net_income_tax: float, usc: float, prsi: float, total_taxes: float, take_home: float, effective_rate: float, marginal_overall_rate: float) -> dict:
         """Assembles the final comprehensive tax report dictionary."""
+        deductions = {
+            "Gross Income Tax": round(gross_income_tax, 2),
+            "Total Accumulated Tax Credits": round(total_credits, 2),
+            "Net Income Tax (PAYE)": round(net_income_tax, 2),
+            "USC": round(usc, 2),
+            "PRSI": round(prsi, 2),
+            "Cycle to Work pre-tax Deduction": round(investments.cycle_to_work, 2),
+            "Travel Pass pre-tax Deduction": round(investments.travel_pass, 2),
+            "EIIS Deduction": round(investments.eiis_investment, 2),
+            "Deeds of Covenant Deduction": round(investments.deeds_of_covenant, 2),
+            "Charitable Donations (No Direct Relief)": round(investments.charitable_donations, 2),
+            "Charitable Deduction (Self-Employed)": round(IrishTaxCalculator.calculate_charitable_deduction(profile, investments), 2),
+        }
+        
+        # Merge individual granular tax credits
+        for k, v in credit_dict.items():
+            deductions[k] = round(v, 2)
+
         return {
             "Core Financials": {
                 "Gross Compensatory Value": profile.gross_income,
@@ -337,25 +366,7 @@ class IrishTaxCalculator:
                 "Benefits In Kind (BIK)": profile.bik,
                 "Employer Health Premium (BIK)": profile.employer_health_premium,
             },
-            "Tax Deductions": {
-                "Gross Income Tax": round(gross_income_tax, 2),
-                "Tax Credits Applied": round(total_credits, 2),
-                "Net Income Tax (PAYE)": round(net_income_tax, 2),
-                "USC": round(usc, 2),
-                "PRSI": round(prsi, 2),
-                "Rent Tax Credit (20%)": round(IrishTaxCalculator._calculate_rent_credit(profile), 2),
-                "Cycle to Work": round(investments.cycle_to_work, 2),
-                "Travel Pass": round(investments.travel_pass, 2),
-                "Income Protection Relief (20%)": round(IrishTaxCalculator.calculate_income_protection_relief(profile, investments), 2),
-                "Nursing Home Fees Relief (20%)": round(profile.nursing_home_fees * 0.20, 2),
-                "Employee Health Insurance Relief (20%)": round(profile.employee_health_insurance * 0.20, 2),
-                "Charitable Donations": round(investments.charitable_donations, 2),
-                "Charitable Deduction (Self-Employed)": round(IrishTaxCalculator.calculate_charitable_deduction(profile, investments), 2),
-                "EIIS Deduction": round(investments.eiis_investment, 2),
-                "Deeds of Covenant Deduction": round(investments.deeds_of_covenant, 2),
-                "Health Expenses Relief (20%)": round(profile.qualifying_health_expenses * 0.20, 2),
-                "Employer Health Insurance Relief (20%)": round(profile.employer_health_premium * 0.20, 2)
-            },
+            "Tax Deductions": deductions,
             "Summary": {
                 "Total Tax Deduced": round(total_taxes, 2),
                 "Take Home CASH": round(take_home, 2),
@@ -375,14 +386,14 @@ class IrishTaxCalculator:
         taxable_base = IrishTaxCalculator.calculate_taxable_base(profile, investments)
         total_income = IrishTaxCalculator.calculate_total_income(taxable_base, profile)
         taxable_paye_income = IrishTaxCalculator.calculate_taxable_paye_income(total_income, investments, profile)
-        gross_income_tax, net_income_tax, total_credits, marginal_income_tax_rate = IrishTaxCalculator.calculate_net_income_tax(profile, investments, taxable_paye_income, total_income, cfg)
+        gross_income_tax, net_income_tax, total_credits, credit_dict, marginal_income_tax_rate = IrishTaxCalculator.calculate_net_income_tax(profile, investments, taxable_paye_income, total_income, cfg)
         prsi, prsi_marginal = IrishTaxCalculator.calculate_prsi(profile, total_income, cfg)
         usc, usc_marginal = IrishTaxCalculator.calculate_usc(profile, total_income, cfg)
         total_taxes = net_income_tax + prsi + usc
         take_home = IrishTaxCalculator.calculate_take_home(profile, investments, taxable_base, total_taxes)
         marginal_overall_rate = marginal_income_tax_rate + prsi_marginal + usc_marginal
         effective_rate = IrishTaxCalculator.calculate_effective_rate(profile, investments, total_taxes)
-        return IrishTaxCalculator.build_result_dict(profile, investments, gross_income_tax, total_credits, net_income_tax, usc, prsi, total_taxes, take_home, effective_rate, marginal_overall_rate)
+        return IrishTaxCalculator.build_result_dict(profile, investments, gross_income_tax, total_credits, credit_dict, net_income_tax, usc, prsi, total_taxes, take_home, effective_rate, marginal_overall_rate)
 
     @staticmethod
     def _build_empty_response() -> dict:
@@ -394,46 +405,53 @@ class IrishTaxCalculator:
         }
 
     @staticmethod
-    def _objective_function(x, profile: UserProfile, base_investments: Investments, utility_weight_pension: float, utility_weight_cycle: float, utility_weight_travel: float, utility_weight_income_protection: float) -> float:
+    def _objective_function(x, profile: UserProfile, base_investments: Investments, utility_weight_pension: float, utility_weight_cycle: float, utility_weight_travel: float, utility_weight_income_protection: float, utility_weight_eiis: float, utility_weight_deeds: float) -> float:
         """The function SciPy minimizes to find optimal fund allocation."""
         investments = base_investments.model_copy(update={
             "pension_contribution": x[0],
             "cycle_to_work": x[1],
             "travel_pass": x[2],
-            "income_protection_premium": x[3]
+            "income_protection_premium": x[3],
+            "eiis_investment": x[4],
+            "deeds_of_covenant": x[5]
         })
         result = IrishTaxCalculator.calculate(profile, investments)
         take_home_cash = result["Summary"]["_raw_take_home"]
-        total_utility = take_home_cash + (utility_weight_pension * investments.pension_contribution) + (utility_weight_cycle * investments.cycle_to_work) + (utility_weight_travel * investments.travel_pass) + (utility_weight_income_protection * investments.income_protection_premium)
+        total_utility = take_home_cash + (utility_weight_pension * investments.pension_contribution) + (utility_weight_cycle * investments.cycle_to_work) + (utility_weight_travel * investments.travel_pass) + (utility_weight_income_protection * investments.income_protection_premium) + (utility_weight_eiis * investments.eiis_investment) + (utility_weight_deeds * investments.deeds_of_covenant)
         return -total_utility
 
     @staticmethod
-    def optimize(profile: UserProfile, base_investments: Investments, required_liquid_cash: float = 0.0, utility_weight_pension=1.2, utility_weight_cycle=0.85, utility_weight_travel=0.95, utility_weight_income_protection=0.0) -> Investments:
+    def optimize(profile: UserProfile, base_investments: Investments, required_liquid_cash: float = 0.0, utility_weight_pension=1.2, utility_weight_cycle=0.85, utility_weight_travel=0.95, utility_weight_income_protection=0.0, utility_weight_eiis=1.1, utility_weight_deeds=1.0) -> Investments:
         """Multidimensional optimizer to maximize user utility given a cash floor."""
         max_pension = IrishTaxCalculator.get_max_pension_limit(profile)
         max_cycle = IrishTaxCalculator.get_max_cycle_to_work_limit(base_investments)
         max_travel = 1830.0
         max_ip = profile.gross_income * 0.10
-        bounds = [(0.0, max_pension), (0.0, max_cycle), (0.0, max_travel), (0.0, max_ip)]
+        max_eiis = min(500000.0, profile.eiis_max_willing)
+        max_deeds = min(profile.gross_income * 0.05, profile.deeds_max_willing)
+        
+        bounds = [(0.0, max_pension), (0.0, max_cycle), (0.0, max_travel), (0.0, max_ip), (0.0, max_eiis), (0.0, max_deeds)]
         
         def liquidity_constraint(x):
             inv = base_investments.model_copy(update={
                 "pension_contribution": x[0], 
                 "cycle_to_work": x[1], 
                 "travel_pass": x[2], 
-                "income_protection_premium": x[3]
+                "income_protection_premium": x[3],
+                "eiis_investment": x[4],
+                "deeds_of_covenant": x[5]
             })
             return IrishTaxCalculator.calculate(profile, inv)["Summary"]["_raw_take_home"] - required_liquid_cash
 
         constraints = ({'type': 'ineq', 'fun': liquidity_constraint})
-        res = minimize(lambda x: IrishTaxCalculator._objective_function(x, profile, base_investments, utility_weight_pension, utility_weight_cycle, utility_weight_travel, utility_weight_income_protection), 
-                       [10.0, 10.0, 10.0, 10.0], bounds=bounds, constraints=constraints, method='SLSQP')
+        res = minimize(lambda x: IrishTaxCalculator._objective_function(x, profile, base_investments, utility_weight_pension, utility_weight_cycle, utility_weight_travel, utility_weight_income_protection, utility_weight_eiis, utility_weight_deeds), 
+                       [10.0, 10.0, 10.0, 10.0, 0.0, 0.0], bounds=bounds, constraints=constraints, method='SLSQP')
         
-        if res.success:
-            return base_investments.model_copy(update={
-                "pension_contribution": res.x[0], 
-                "cycle_to_work": res.x[1], 
-                "travel_pass": res.x[2], 
-                "income_protection_premium": res.x[3]
-            })
-        return base_investments
+        return base_investments.model_copy(update={
+            "pension_contribution": res.x[0] if res.success else 0.0,
+            "cycle_to_work": res.x[1] if res.success else 0.0,
+            "travel_pass": res.x[2] if res.success else 0.0,
+            "income_protection_premium": res.x[3] if res.success else 0.0,
+            "eiis_investment": res.x[4] if res.success else 0.0,
+            "deeds_of_covenant": res.x[5] if res.success else 0.0
+        })
