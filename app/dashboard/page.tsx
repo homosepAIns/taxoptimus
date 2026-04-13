@@ -96,6 +96,20 @@ export default function DashboardPage() {
     employer_health_premium:    0,
   })
 
+  // ── Savings Goals state ──────────────────────────────────────────────────────
+  const [addingGoal,     setAddingGoal]     = useState(false)
+  const [newGoalName,    setNewGoalName]    = useState('')
+  const [newGoalTarget,  setNewGoalTarget]  = useState('')
+  const [newGoalDate,    setNewGoalDate]    = useState('')
+  const [updatingGoalId,     setUpdatingGoalId]     = useState<string | null>(null)
+  const [updateAmount,       setUpdateAmount]       = useState('')
+  const [editingGoalId,      setEditingGoalId]      = useState<string | null>(null)
+  const [editGoalName,       setEditGoalName]       = useState('')
+  const [editGoalTarget,     setEditGoalTarget]     = useState('')
+  const [editGoalDate,       setEditGoalDate]       = useState('')
+  const [confirmDeleteGoalId,setConfirmDeleteGoalId]= useState<string | null>(null)
+  const [goalSaving,         setGoalSaving]         = useState(false)
+
   useEffect(() => {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession()
@@ -241,6 +255,94 @@ export default function DashboardPage() {
       console.error(err)
     }
     setCalcLoading(false)
+  }
+
+  // ── Savings goal helpers ─────────────────────────────────────────────────────
+  function goalNudge(goal: SavingsGoal): { text: string; icon: string; color: string } {
+    const pct = goal.target_amount > 0 ? (goal.current_amount / goal.target_amount) * 100 : 0
+    const remaining = Math.max(0, goal.target_amount - goal.current_amount)
+
+    if (pct >= 100) return { text: "Goal reached! Time to celebrate.", icon: "celebration", color: "text-primary" }
+    if (pct >= 80)  return { text: `Almost there — just €${fmt(remaining)} to go!`, icon: "local_fire_department", color: "text-orange-500" }
+
+    if (goal.target_date) {
+      const today = new Date()
+      const target = new Date(goal.target_date)
+      const monthsLeft = Math.round(
+        (target.getFullYear() - today.getFullYear()) * 12 + (target.getMonth() - today.getMonth())
+      )
+      if (monthsLeft <= 0) return { text: `Target date passed — €${fmt(remaining)} still to go.`, icon: "schedule", color: "text-error" }
+      const monthly = Math.ceil(remaining / monthsLeft)
+      return {
+        text: `Save €${fmt(monthly)}/month to hit this by ${target.toLocaleDateString('en-IE', { month: 'short', year: 'numeric' })}.`,
+        icon: "lightbulb",
+        color: "text-primary",
+      }
+    }
+
+    if (pct < 5)  return { text: "Every euro counts — start small and be consistent.", icon: "emoji_objects", color: "text-primary" }
+    return { text: `€${fmt(remaining)} to go — you've got this!`, icon: "trending_up", color: "text-primary" }
+  }
+
+  async function handleAddGoal(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newGoalName || !newGoalTarget) return
+    setGoalSaving(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    const { data } = await supabase.from('savings_goals').insert({
+      user_id:        session!.user.id,
+      name:           newGoalName.trim(),
+      target_amount:  Number(newGoalTarget),
+      current_amount: 0,
+      target_date:    newGoalDate || null,
+    }).select().single()
+    if (data) {
+      setGoals(g => [...g, data as SavingsGoal])
+      setNewGoalName(''); setNewGoalTarget(''); setNewGoalDate('')
+      setAddingGoal(false)
+    }
+    setGoalSaving(false)
+  }
+
+  async function handleUpdateGoal(goalId: string) {
+    if (updateAmount === '') return
+    setGoalSaving(true)
+    const goal = goals.find(g => g.id === goalId)
+    if (!goal) { setGoalSaving(false); return }
+    const newAmount = Math.min(goal.current_amount + Number(updateAmount), goal.target_amount)
+    const { data } = await supabase.from('savings_goals')
+      .update({ current_amount: newAmount })
+      .eq('id', goalId).select().single()
+    if (data) {
+      setGoals(g => g.map(g2 => g2.id === goalId ? data as SavingsGoal : g2))
+      setUpdatingGoalId(null); setUpdateAmount('')
+    }
+    setGoalSaving(false)
+  }
+
+  async function handleEditGoalSave(e: React.FormEvent, goalId: string) {
+    e.preventDefault()
+    setGoalSaving(true)
+    const { data } = await supabase.from('savings_goals')
+      .update({
+        name:          editGoalName.trim(),
+        target_amount: Number(editGoalTarget),
+        target_date:   editGoalDate || null,
+      })
+      .eq('id', goalId).select().single()
+    if (data) {
+      setGoals(g => g.map(g2 => g2.id === goalId ? data as SavingsGoal : g2))
+      setEditingGoalId(null)
+    }
+    setGoalSaving(false)
+  }
+
+  async function handleDeleteGoal(goalId: string) {
+    setGoalSaving(true)
+    await supabase.from('savings_goals').delete().eq('id', goalId)
+    setGoals(g => g.filter(g2 => g2.id !== goalId))
+    setConfirmDeleteGoalId(null)
+    setGoalSaving(false)
   }
 
   if (loading) return <Skeleton />
@@ -651,45 +753,245 @@ export default function DashboardPage() {
 
           {/* ── Savings Goals ── */}
           <div className="md:col-span-12 bg-surface-container-lowest rounded-2xl p-8">
-            <div className="flex justify-between items-end mb-8">
+            <div className="flex justify-between items-center mb-8">
               <div>
                 <h3 className="text-2xl font-bold">Savings Goals</h3>
                 {goals.length > 0 && (
-                  <p className="text-on-surface-variant">
-                    {goals.filter(g => g.current_amount >= g.target_amount).length} of {goals.length} goal{goals.length !== 1 ? 's' : ''} reached
+                  <p className="text-on-surface-variant text-sm mt-0.5">
+                    {goals.filter(g => g.current_amount >= g.target_amount).length} of {goals.length} reached
                   </p>
                 )}
               </div>
+              <button
+                onClick={() => { setAddingGoal(a => !a); setNewGoalName(''); setNewGoalTarget(''); setNewGoalDate('') }}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-colors ${addingGoal ? 'bg-surface-container-low text-on-surface-variant' : 'signature-gradient text-white shadow-sm'}`}
+              >
+                <span className="material-symbols-outlined text-base">{addingGoal ? 'close' : 'add'}</span>
+                {addingGoal ? 'Cancel' : 'Add Goal'}
+              </button>
             </div>
 
+            {/* Add goal form */}
+            {addingGoal && (
+              <form onSubmit={handleAddGoal} className="bg-surface-container-low rounded-2xl p-6 mb-8 space-y-4">
+                <p className="font-bold text-sm text-on-surface-variant uppercase tracking-wide">New Goal</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex flex-col gap-1.5 md:col-span-1">
+                    <label className="text-xs font-medium text-on-surface-variant">Goal name</label>
+                    <input
+                      required placeholder="e.g. House Deposit"
+                      value={newGoalName} onChange={e => setNewGoalName(e.target.value)}
+                      className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-3 px-4 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-on-surface-variant">Target amount (€)</label>
+                    <input
+                      required type="number" min={1} placeholder="e.g. 20000"
+                      value={newGoalTarget} onChange={e => setNewGoalTarget(e.target.value)}
+                      className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-3 px-4 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-on-surface-variant">Target date <span className="opacity-60">(optional)</span></label>
+                    <input
+                      type="date"
+                      value={newGoalDate} onChange={e => setNewGoalDate(e.target.value)}
+                      className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-3 px-4 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="submit" disabled={goalSaving}
+                  className="signature-gradient text-white font-bold py-2.5 px-6 rounded-xl text-sm disabled:opacity-60 flex items-center gap-2"
+                >
+                  {goalSaving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <span className="material-symbols-outlined text-base">add</span>}
+                  Save Goal
+                </button>
+              </form>
+            )}
+
             {goals.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {goals.map(goal => {
-                  const pct = Math.min((goal.current_amount / goal.target_amount) * 100, 100)
+                  const pct       = goal.target_amount > 0 ? Math.min((goal.current_amount / goal.target_amount) * 100, 100) : 0
+                  const remaining = Math.max(0, goal.target_amount - goal.current_amount)
+                  const nudge     = goalNudge(goal)
+                  const done      = pct >= 100
+                  const isAdding  = updatingGoalId === goal.id
+                  const isEditing = editingGoalId  === goal.id
+                  const isDeleting= confirmDeleteGoalId === goal.id
+
                   return (
-                    <div key={goal.id} className="space-y-3">
-                      <div className="flex justify-between text-sm font-bold">
-                        <span>{goal.name}</span>
-                        <span className="text-on-surface-variant font-medium">€{fmt(goal.current_amount)} / €{fmt(goal.target_amount)}</span>
-                      </div>
-                      <div className="h-3 bg-surface-container-low rounded-full overflow-hidden">
-                        <div className="h-full emerald-gradient rounded-full transition-all" style={{ width: `${pct}%` }} />
-                      </div>
-                      <div className="flex justify-between text-xs text-on-surface-variant">
-                        <span>{pct.toFixed(0)}% reached</span>
-                        {goal.target_date && (
-                          <span>by {new Date(goal.target_date).toLocaleDateString('en-IE', { month: 'short', year: 'numeric' })}</span>
-                        )}
-                      </div>
+                    <div key={goal.id} className="bg-surface-container-low rounded-2xl p-5 space-y-4 flex flex-col">
+
+                      {/* ── Edit goal details form ── */}
+                      {isEditing ? (
+                        <form onSubmit={e => handleEditGoalSave(e, goal.id)} className="space-y-3">
+                          <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wide">Edit Goal</p>
+                          <input
+                            required autoFocus
+                            placeholder="Goal name"
+                            value={editGoalName} onChange={e => setEditGoalName(e.target.value)}
+                            className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2.5 px-4 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          />
+                          <div className="flex gap-2">
+                            <div className="relative flex-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-xs">€</span>
+                              <input
+                                required type="number" min={1} placeholder="Target"
+                                value={editGoalTarget} onChange={e => setEditGoalTarget(e.target.value)}
+                                className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2.5 pl-6 pr-3 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                              />
+                            </div>
+                            <input
+                              type="date"
+                              value={editGoalDate} onChange={e => setEditGoalDate(e.target.value)}
+                              className="flex-1 bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2.5 px-3 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button type="submit" disabled={goalSaving}
+                              className="flex-1 bg-primary text-white rounded-xl py-2.5 text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-1"
+                            >
+                              {goalSaving ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Save'}
+                            </button>
+                            <button type="button" onClick={() => setEditingGoalId(null)}
+                              className="px-4 bg-surface-container-high text-on-surface-variant rounded-xl text-sm font-medium"
+                            >Cancel</button>
+                          </div>
+                        </form>
+                      ) : (
+                        <>
+                          {/* Header */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-bold text-base leading-tight truncate">{goal.name}</p>
+                              {goal.target_date && (
+                                <p className="text-xs text-on-surface-variant mt-0.5">
+                                  by {new Date(goal.target_date).toLocaleDateString('en-IE', { month: 'short', year: 'numeric' })}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {done
+                                ? <span className="material-symbols-outlined text-primary text-xl">check_circle</span>
+                                : (
+                                  <button onClick={() => { setUpdatingGoalId(isAdding ? null : goal.id); setUpdateAmount('') }}
+                                    className={`p-1 rounded-lg transition-colors ${isAdding ? 'text-primary' : 'text-on-surface-variant hover:text-primary'}`}
+                                    title="Add savings"
+                                  >
+                                    <span className="material-symbols-outlined text-lg">{isAdding ? 'close' : 'add_circle'}</span>
+                                  </button>
+                                )
+                              }
+                              <button
+                                onClick={() => {
+                                  setEditingGoalId(goal.id)
+                                  setEditGoalName(goal.name)
+                                  setEditGoalTarget(String(goal.target_amount))
+                                  setEditGoalDate(goal.target_date ?? '')
+                                  setUpdatingGoalId(null)
+                                  setConfirmDeleteGoalId(null)
+                                }}
+                                className="p-1 rounded-lg text-on-surface-variant hover:text-primary transition-colors"
+                                title="Edit goal"
+                              >
+                                <span className="material-symbols-outlined text-lg">edit</span>
+                              </button>
+                              <button
+                                onClick={() => setConfirmDeleteGoalId(isDeleting ? null : goal.id)}
+                                className={`p-1 rounded-lg transition-colors ${isDeleting ? 'text-error' : 'text-on-surface-variant hover:text-error'}`}
+                                title="Delete goal"
+                              >
+                                <span className="material-symbols-outlined text-lg">delete</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Confirm delete */}
+                          {isDeleting && (
+                            <div className="bg-error-container/40 rounded-xl p-3 flex items-center justify-between gap-3">
+                              <p className="text-xs text-on-error-container font-medium">Delete this goal?</p>
+                              <div className="flex gap-2">
+                                <button onClick={() => handleDeleteGoal(goal.id)} disabled={goalSaving}
+                                  className="bg-error text-white text-xs font-bold px-3 py-1.5 rounded-lg disabled:opacity-60"
+                                >Delete</button>
+                                <button onClick={() => setConfirmDeleteGoalId(null)}
+                                  className="bg-surface-container text-on-surface text-xs font-medium px-3 py-1.5 rounded-lg"
+                                >Cancel</button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Progress bar */}
+                          <div>
+                            <div className="h-2.5 bg-surface-container-high rounded-full overflow-hidden mb-2">
+                              <div
+                                className={`h-full rounded-full transition-all ${done ? 'bg-primary' : 'emerald-gradient'}`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <div className="flex justify-between text-xs text-on-surface-variant">
+                              <span className="font-bold">€{fmt(goal.current_amount)} saved</span>
+                              <span>{pct.toFixed(0)}% of €{fmt(goal.target_amount)}</span>
+                            </div>
+                          </div>
+
+                          {/* Remaining */}
+                          {!done && (
+                            <p className="text-sm font-semibold text-on-surface">
+                              €{fmt(remaining)} <span className="text-on-surface-variant font-normal">more to go</span>
+                            </p>
+                          )}
+
+                          {/* Add savings inline form */}
+                          {isAdding && (
+                            <div className="flex gap-2 items-center">
+                              <div className="relative flex-1">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">€</span>
+                                <input
+                                  type="number" min={0} autoFocus
+                                  placeholder="Amount to add"
+                                  value={updateAmount} onChange={e => setUpdateAmount(e.target.value)}
+                                  className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2.5 pl-7 pr-3 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                />
+                              </div>
+                              <button
+                                onClick={() => handleUpdateGoal(goal.id)} disabled={goalSaving}
+                                className="bg-primary text-white rounded-xl px-4 py-2.5 text-sm font-bold disabled:opacity-60 flex items-center gap-1"
+                              >
+                                {goalSaving ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Add'}
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Nudge */}
+                          <div className={`flex items-start gap-2 text-xs ${nudge.color} mt-auto pt-1`}>
+                            <span className="material-symbols-outlined text-base flex-shrink-0 mt-px" style={{ fontVariationSettings: '"FILL" 1' }}>{nudge.icon}</span>
+                            <span className="leading-relaxed">{nudge.text}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )
                 })}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-8 gap-3 text-center">
-                <span className="material-symbols-outlined text-5xl text-on-surface-variant/30">savings</span>
-                <p className="text-on-surface-variant text-sm">No savings goals yet — they&apos;ll appear here once added</p>
-              </div>
+              !addingGoal && (
+                <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+                  <span className="material-symbols-outlined text-5xl text-on-surface-variant/30">savings</span>
+                  <p className="text-on-surface-variant text-sm">No savings goals yet</p>
+                  <p className="text-xs text-on-surface-variant/60 max-w-xs">Set a goal and track your progress — whether it&apos;s a house deposit, holiday, or emergency fund.</p>
+                  <button
+                    onClick={() => setAddingGoal(true)}
+                    className="signature-gradient text-white font-bold py-2.5 px-5 rounded-xl text-sm mt-2 flex items-center gap-1.5"
+                  >
+                    <span className="material-symbols-outlined text-base">add</span>
+                    Set your first goal
+                  </button>
+                </div>
+              )
             )}
           </div>
 
