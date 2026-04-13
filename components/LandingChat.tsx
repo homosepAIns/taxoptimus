@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import TaxBreakdownModal from '@/components/TaxBreakdownModal'
 
 // ── Save helper: DB if logged in, localStorage if not ─────────────────────────
 interface CalcPayload {
@@ -43,60 +44,11 @@ interface Message {
   text: string
 }
 
-// ── 2024 Irish Tax Engine ─────────────────────────────────────────────────────
-const CUT_OFF: Record<Status, number> = {
-  'single':       42000,
-  'married-one':  51000,
-  'married-two':  42000, // per earner
-  'one-parent':   46000,
-}
-
-// Tax credits per individual filing position (annual)
-const TAX_CREDITS: Record<Status, number> = {
-  'single':       3750,  // Personal €1,875 + PAYE €1,875
-  'married-one':  5625,  // Married €3,750 + PAYE €1,875
-  'married-two':  3750,  // Married credit halved (€1,875) + PAYE €1,875
-  'one-parent':   5500,  // Personal €1,875 + PAYE €1,875 + SPCC €1,750
-}
-
 const STATUS_LABELS: Record<Status, string> = {
   'single':       'Single',
   'married-one':  'Married (1 income)',
   'married-two':  'Married (2 incomes)',
   'one-parent':   'Single Parent Family',
-}
-
-function calcIrishTax(gross: number, status: Status, age: number, hasMedicalCard: boolean) {
-  // PRSI — Class A: 4% above €18,304; 0% below (simplified)
-  const prsi = gross > 18304 ? Math.round(gross * 0.04) : 0
-
-  // USC
-  let usc = 0
-  if (gross > 13000) {
-    if (age >= 70 || hasMedicalCard) {
-      // Reduced: 0.5% up to €12,012, 2% on balance
-      usc = Math.min(gross, 12012) * 0.005 + Math.max(0, gross - 12012) * 0.02
-    } else {
-      // Standard bands
-      const b1 = Math.min(gross, 12012) * 0.005
-      const b2 = Math.min(Math.max(0, gross - 12012), 10908) * 0.02
-      const b3 = Math.min(Math.max(0, gross - 22920), 47124) * 0.04
-      const b4 = Math.max(0, gross - 70044) * 0.08
-      usc = b1 + b2 + b3 + b4
-    }
-  }
-  usc = Math.round(usc)
-
-  // Income Tax
-  const cutoff = CUT_OFF[status]
-  const rawTax = gross <= cutoff ? gross * 0.2 : cutoff * 0.2 + (gross - cutoff) * 0.4
-  const incomeTax = Math.max(0, Math.round(rawTax - TAX_CREDITS[status]))
-
-  const netAnnual = gross - prsi - usc - incomeTax
-  const netMonthly = Math.round(netAnnual / 12)
-  const marginalRate = gross > cutoff ? 0.4 : 0.2
-
-  return { prsi, usc, incomeTax, netMonthly, marginalRate }
 }
 
 function fmt(n: number) {
@@ -121,6 +73,8 @@ export default function LandingChat() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [saving, setSaving] = useState(false)
   const [step, setStep] = useState<Step>('gross')
+  const [showFullBreakdown, setShowFullBreakdown] = useState(false)
+  const [fullCalcData, setFullCalcData] = useState<any>(null)
   const [messages, setMessages] = useState<Message[]>([
     { role: 'ai', text: "Let's calculate your Irish take-home pay. What's your annual gross income in euros?" },
   ])
@@ -227,16 +181,52 @@ export default function LandingChat() {
   }
 
   // ── Medical card picker ──
-  function handleMedical(has: boolean) {
+  async function handleMedical(has: boolean) {
     setMedicalCard(has)
     setMessages((prev) => [...prev, { role: 'user', text: has ? 'Yes, I have a medical card' : 'No medical card' }])
+    setTyping(true)
 
-    const result = calcIrishTax(gross, status, age, has)
-    setCalc(result)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/tax/calculate', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': session ? `Bearer ${session.access_token}` : ''
+        },
+        body: JSON.stringify({
+          gross_income: gross,
+          age: age,
+          tax_status: status,
+          has_medical_card: has,
+          tax_year: 2026
+        })
+      })
 
-    const breakdown = `Based on your profile, here's your estimated annual breakdown:\n\n• **Gross income:** €${fmt(gross)}\n• **Income Tax:** €${fmt(result.incomeTax)}\n• **PRSI:** €${fmt(result.prsi)}\n• **USC:** €${fmt(result.usc)}\n\nEstimated **monthly take-home: €${fmt(result.netMonthly)}**. Does that match what you receive?`
+      if (!res.ok) throw new Error('Backend calculation failed')
+      
+      const data = await res.json()
+      const summary = data.calculation.Summary
+      setFullCalcData(data.calculation)
+      
+      setCalc({
+        prsi: data.calculation['Tax Deductions'].PRSI,
+        usc: data.calculation['Tax Deductions'].USC,
+        incomeTax: data.calculation['Tax Deductions']['Net Income Tax (PAYE)'],
+        netMonthly: summary['Take Home CASH'] / 12,
+        marginalRate: summary['Marginal Tax Rate (%)'] / 100
+      })
 
-    aiReply(breakdown, 'result', 1300)
+      const breakdown = `Based on your profile (2026 Rules), here's your estimated annual breakdown:\n\n• **Gross income:** €${fmt(gross)}\n• **Income Tax:** €${fmt(data.calculation['Tax Deductions']['Net Income Tax (PAYE)'] ?? 0)}\n• **PRSI:** €${fmt(data.calculation['Tax Deductions'].PRSI ?? 0)}\n• **USC:** €${fmt(data.calculation['Tax Deductions'].USC ?? 0)}\n\nEstimated **monthly take-home: €${fmt(summary['Take Home CASH'] / 12)}**. Does that match what you receive?`
+
+      setTyping(false)
+      setMessages((prev) => [...prev, { role: 'ai', text: breakdown }])
+      setStep('result')
+    } catch (err) {
+      console.error(err)
+      setTyping(false)
+      aiReply("Sorry, I had trouble calculating your taxes. Please try again or sign up for full access.", 'medical')
+    }
   }
 
   // ── Compare buttons ──
@@ -399,6 +389,19 @@ export default function LandingChat() {
             {/* CTA — optimise outcome */}
             {step === 'done_optimise' && !typing && <ChatCTA isLoggedIn={isLoggedIn} />}
 
+            {/* View Full Breakdown Button */}
+            {fullCalcData && !typing && (
+              <div className="pl-11 mt-2">
+                <button 
+                  onClick={() => setShowFullBreakdown(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-surface-container-high text-primary hover:bg-primary/10 rounded-xl text-xs font-bold transition-all border border-primary/20"
+                >
+                  <span className="material-symbols-outlined text-lg">analytics</span>
+                  View Detailed Breakdown
+                </button>
+              </div>
+            )}
+
           </div>
 
           {/* Euro / age input bar */}
@@ -437,6 +440,13 @@ export default function LandingChat() {
           )}
         </div>
       </div>
+
+      {showFullBreakdown && (
+        <TaxBreakdownModal 
+          data={fullCalcData} 
+          onClose={() => setShowFullBreakdown(false)} 
+        />
+      )}
     </section>
   )
 }

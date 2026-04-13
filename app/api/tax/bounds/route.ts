@@ -5,7 +5,6 @@ export const runtime = 'nodejs'
 
 const FASTAPI_URL = process.env.FASTAPI_URL || 'http://127.0.0.1:8000'
 
-// Maps frontend tax_status keys to FastAPI/engine.py keys
 function toMaritalStatus(taxStatus: string): { marital_status: string; claims_single_child_carer: boolean } {
   switch (taxStatus) {
     case 'married-one':  return { marital_status: 'Married_1_Income', claims_single_child_carer: false }
@@ -28,7 +27,6 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    // 1. Fetch current profile data from Supabase
     const [incomeRes, taxRes] = await Promise.all([
       supabase.from('income_profiles').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('tax_profiles').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
@@ -40,7 +38,6 @@ export async function POST(req: NextRequest) {
     const tax = taxRes.data || {}
     const { marital_status, claims_single_child_carer } = toMaritalStatus(inc.tax_status)
 
-    // 2. Prepare the payload for FastAPI
     const payload = {
       profile: {
         gross_income: Number(inc.gross_income),
@@ -81,16 +78,10 @@ export async function POST(req: NextRequest) {
         charitable_donations: Number(tax.charitable_donations || 0),
         eiis_investment: Number(tax.eiis_investment || 0),
         deeds_of_covenant: Number(tax.deeds_of_covenant || 0),
-      },
-      required_liquid_cash: Number(tax.required_liquid_cash || 0),
-      utility_weight_pension: Number(tax.weight_pension ?? 1.2),
-      utility_weight_cycle: Number(tax.weight_cycle ?? 0.85),
-      utility_weight_travel: Number(tax.weight_travel ?? 0.95),
-      utility_weight_income_protection: Number(tax.weight_ip ?? 0.0)
+      }
     }
 
-    // 3. Call Python Optimizer
-    const response = await fetch(`${FASTAPI_URL}/optimize`, {
+    const response = await fetch(`${FASTAPI_URL}/bounds`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -98,14 +89,14 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       const errorText = await response.text()
-      throw new Error(`FastAPI Optimization Error: ${errorText}`)
+      throw new Error(`FastAPI Bounds Error: ${errorText}`)
     }
 
     const result = await response.json()
     return NextResponse.json(result)
 
   } catch (err) {
-    console.error('[tax/optimize] Proxy Error:', err)
-    return NextResponse.json({ error: 'Optimization failed', detail: String(err) }, { status: 500 })
+    console.error('[tax/bounds] Proxy Error:', err)
+    return NextResponse.json({ error: 'Bounds check failed', detail: String(err) }, { status: 500 })
   }
 }

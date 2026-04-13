@@ -66,13 +66,26 @@ type CalcResult = {
 }
 
 type TaxFormData = {
+  tax_year:                  number
   employment_type:           'PAYE' | 'Self-Employed'
+  second_income:             number
+  rent_a_room_income:        number
+  micro_generation_income:   number
+  is_blind:                  boolean
+  has_incapacitated_child:   boolean
+  claims_home_carer:         boolean
+  claims_single_child_carer: boolean
+  claims_dependent_relative: boolean
+  medical_card:              boolean
   remote_working_days:       number
   annual_wfh_utility_costs:  number
   annual_rent_paid:          number
   qualifying_health_expenses: number
   bik:                       number
   employer_health_premium:   number
+  flat_rate_expense:         number
+  nursing_home_fees:         number
+  employee_health_insurance: number
 }
 
 export default function DashboardPage() {
@@ -87,13 +100,26 @@ export default function DashboardPage() {
   const [calcLoading,  setCalcLoading]  = useState(false)
   const [calcError,    setCalcError]    = useState('')
   const [formData,     setFormData]     = useState<TaxFormData>({
+    tax_year:                   2026,
     employment_type:            'PAYE',
+    second_income:              0,
+    rent_a_room_income:         0,
+    micro_generation_income:    0,
+    is_blind:                   false,
+    has_incapacitated_child:    false,
+    claims_home_carer:          false,
+    claims_single_child_carer:  false,
+    claims_dependent_relative:  false,
+    medical_card:               false,
     remote_working_days:        0,
     annual_wfh_utility_costs:   0,
     annual_rent_paid:           0,
     qualifying_health_expenses: 0,
     bik:                        0,
     employer_health_premium:    0,
+    flat_rate_expense:          0,
+    nursing_home_fees:          0,
+    employee_health_insurance:  0,
   })
 
   // ── Savings Goals state ──────────────────────────────────────────────────────
@@ -165,13 +191,26 @@ export default function DashboardPage() {
       if (existingTaxProfile) {
         setTaxProfile(existingTaxProfile)
         setFormData({
-          employment_type:            existingTaxProfile.employment_type,
-          remote_working_days:        existingTaxProfile.remote_working_days,
-          annual_wfh_utility_costs:   existingTaxProfile.annual_wfh_utility_costs,
-          annual_rent_paid:           existingTaxProfile.annual_rent_paid,
-          qualifying_health_expenses: existingTaxProfile.qualifying_health_expenses,
-          bik:                        existingTaxProfile.bik,
-          employer_health_premium:    existingTaxProfile.employer_health_premium,
+          tax_year:                   existingTaxProfile.tax_year || 2026,
+          employment_type:            existingTaxProfile.employment_type as any,
+          second_income:              existingTaxProfile.second_income || 0,
+          rent_a_room_income:         existingTaxProfile.rent_a_room_income || 0,
+          micro_generation_income:    existingTaxProfile.micro_generation_income || 0,
+          is_blind:                   existingTaxProfile.is_blind || false,
+          has_incapacitated_child:    existingTaxProfile.has_incapacitated_child || false,
+          claims_home_carer:          existingTaxProfile.claims_home_carer || false,
+          claims_single_child_carer:  existingTaxProfile.claims_single_child_carer || false,
+          claims_dependent_relative:  existingTaxProfile.claims_dependent_relative || false,
+          medical_card:               existingTaxProfile.medical_card || false,
+          remote_working_days:        existingTaxProfile.remote_working_days || 0,
+          annual_wfh_utility_costs:   existingTaxProfile.annual_wfh_utility_costs || 0,
+          annual_rent_paid:           existingTaxProfile.annual_rent_paid || 0,
+          qualifying_health_expenses: existingTaxProfile.qualifying_health_expenses || 0,
+          bik:                        existingTaxProfile.bik || 0,
+          employer_health_premium:    existingTaxProfile.employer_health_premium || 0,
+          flat_rate_expense:          existingTaxProfile.flat_rate_expense || 0,
+          nursing_home_fees:          existingTaxProfile.nursing_home_fees || 0,
+          employee_health_insurance:  existingTaxProfile.employee_health_insurance || 0,
         })
         // Use stored calc result — no API call needed
         if (existingTaxProfile.calc_result) {
@@ -207,10 +246,6 @@ export default function DashboardPage() {
   const monthlyIncome = profile?.net_monthly ?? 0
   const surplus       = monthlyIncome - totalExpenses
   const gross         = profile?.gross_income ?? 0
-  const taxTotal      = (profile?.income_tax_annual ?? 0) + (profile?.usc_annual ?? 0) + (profile?.prsi_annual ?? 0)
-  const incomeTaxPct  = gross > 0 ? ((profile?.income_tax_annual ?? 0) / gross) * 100 : 0
-  const uscPct        = gross > 0 ? ((profile?.usc_annual        ?? 0) / gross) * 100 : 0
-  const prsiPct       = gross > 0 ? ((profile?.prsi_annual       ?? 0) / gross) * 100 : 0
 
   async function handleTaxFormSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -459,7 +494,7 @@ export default function DashboardPage() {
           </div>
 
           {/* ── Tax Breakdown ── */}
-          <div className="md:col-span-12 lg:col-span-7 bg-surface-container-low rounded-2xl p-8 border border-outline-variant/10">
+          <div id="tax-form" className="md:col-span-12 lg:col-span-7 bg-surface-container-low rounded-2xl p-8 border border-outline-variant/10 scroll-mt-24">
             <div className="flex items-start justify-between mb-6">
               <div>
                 <h3 className="text-2xl font-bold mb-1">Your Tax Breakdown</h3>
@@ -484,7 +519,7 @@ export default function DashboardPage() {
               <div className="flex flex-col items-center justify-center py-8 gap-4 text-center">
                 <span className="material-symbols-outlined text-5xl text-on-surface-variant/30">receipt_long</span>
                 <p className="text-on-surface-variant text-sm">Complete the free tax calculator to see your breakdown</p>
-                <Link href="/">
+                <Link href="/calculator">
                   <button className="signature-gradient text-white font-bold py-2.5 px-5 rounded-xl text-sm">
                     Go to Calculator
                   </button>
@@ -494,87 +529,125 @@ export default function DashboardPage() {
 
             {/* State: income profile exists but no tax profile yet (or editing) */}
             {profile && !calcResult && !calcLoading && (
-              <form onSubmit={handleTaxFormSubmit} className="space-y-5">
-                <div className="bg-primary-container/20 rounded-xl p-4 flex gap-3 items-start mb-2">
-                  <span className="material-symbols-outlined text-primary mt-0.5 flex-shrink-0">info</span>
-                  <p className="text-sm text-on-surface-variant leading-relaxed">
-                    We need a few more details to calculate your full Irish tax picture and spot reliefs you may be missing.
-                  </p>
+              <form onSubmit={handleTaxFormSubmit} className="space-y-8">
+                <div className="bg-primary-container/20 rounded-xl p-4 flex gap-3 items-start border border-primary/20">
+                  <span className="material-symbols-outlined text-primary mt-0.5 flex-shrink-0">lock_open</span>
+                  <div>
+                    <p className="text-sm font-bold text-on-surface leading-tight">Unlock Your Optimizer</p>
+                    <p className="text-xs text-on-surface-variant leading-relaxed mt-1">
+                      Complete these additional details once to calculate your exact legal limits for pension and investment optimization.
+                    </p>
+                  </div>
                 </div>
 
-                {/* Employment type */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-on-surface-variant">Employment type</label>
-                  <div className="flex gap-3">
-                    {(['PAYE', 'Self-Employed'] as const).map(t => (
-                      <button
-                        key={t} type="button"
-                        onClick={() => setFormData(d => ({ ...d, employment_type: t }))}
-                        className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-colors ${formData.employment_type === t ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface hover:bg-surface-container-high'}`}
-                      >{t}</button>
+                {/* --- SECTION 1: Employment & Status --- */}
+                <div className="space-y-4">
+                  <h4 className="font-bold text-sm text-primary uppercase tracking-widest border-b border-outline-variant/20 pb-2">1. Employment & Status</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-medium text-on-surface-variant">Employment type</label>
+                      <div className="flex gap-2">
+                        {(['PAYE', 'Self-Employed'] as const).map(t => (
+                          <button key={t} type="button" onClick={() => setFormData(d => ({ ...d, employment_type: t }))}
+                            className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-colors ${formData.employment_type === t ? 'bg-primary text-white shadow-md' : 'bg-surface-container-lowest border border-outline-variant/20 text-on-surface hover:bg-surface-container-high'}`}
+                          >{t}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-medium text-on-surface-variant">Tax Year</label>
+                      <select value={formData.tax_year} onChange={e => setFormData(d => ({ ...d, tax_year: Number(e.target.value) }))}
+                        className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-3 px-4 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      >
+                        <option value={2026}>2026 (Projections)</option>
+                        <option value={2025}>2025 (Current)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* --- SECTION 2: Extra Income --- */}
+                <div className="space-y-4">
+                  <h4 className="font-bold text-sm text-primary uppercase tracking-widest border-b border-outline-variant/20 pb-2">2. Additional Annual Income</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-on-surface-variant">Spouse/2nd Income (€)</label>
+                      <input type="number" value={formData.second_income || ''} onChange={e => setFormData(d => ({ ...d, second_income: Number(e.target.value) }))}
+                        className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2.5 px-4 text-sm" placeholder="0" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-on-surface-variant">Rent-a-Room (€)</label>
+                      <input type="number" value={formData.rent_a_room_income || ''} onChange={e => setFormData(d => ({ ...d, rent_a_room_income: Number(e.target.value) }))}
+                        className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2.5 px-4 text-sm" placeholder="Tax-free < €14k" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-on-surface-variant">Micro-gen (€)</label>
+                      <input type="number" value={formData.micro_generation_income || ''} onChange={e => setFormData(d => ({ ...d, micro_generation_income: Number(e.target.value) }))}
+                        className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2.5 px-4 text-sm" placeholder="Solar/Wind" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* --- SECTION 3: Life Circumstances (Tax Credits) --- */}
+                <div className="space-y-4">
+                  <h4 className="font-bold text-sm text-primary uppercase tracking-widest border-b border-outline-variant/20 pb-2">3. Life Circumstances (Automatic Credits)</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {[
+                      { key: 'is_blind', label: 'Blind Credit', icon: 'visibility_off' },
+                      { key: 'has_incapacitated_child', label: 'Incap. Child', icon: 'child_care' },
+                      { key: 'claims_home_carer', label: 'Home Carer', icon: 'home_health' },
+                      { key: 'claims_single_child_carer', label: 'Single Carer', icon: 'person_raised_hand' },
+                      { key: 'claims_dependent_relative', label: 'Dep. Relative', icon: 'family_restroom' },
+                      { key: 'medical_card', label: 'Medical Card', icon: 'medical_card' },
+                    ].map(item => (
+                      <button key={item.key} type="button" onClick={() => setFormData(d => ({ ...d, [item.key]: !d[item.key as keyof TaxFormData] }))}
+                        className={`flex items-center gap-2 p-3 rounded-xl text-xs font-bold transition-all border ${formData[item.key as keyof TaxFormData] ? 'bg-primary/10 border-primary text-primary' : 'bg-surface-container-lowest border-outline-variant/20 text-on-surface-variant hover:border-primary/50'}`}
+                      >
+                        <span className="material-symbols-outlined text-lg">{item.icon}</span>
+                        {item.label}
+                      </button>
                     ))}
                   </div>
                 </div>
 
-                {/* WFH */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium text-on-surface-variant">WFH days / year</label>
-                    <input type="number" min={0} max={260} placeholder="0"
-                      value={formData.remote_working_days || ''}
-                      onChange={e => setFormData(d => ({ ...d, remote_working_days: Number(e.target.value) }))}
-                      className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-3 px-4 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-                  {formData.remote_working_days > 0 && (
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-medium text-on-surface-variant">Utility costs / yr (€)</label>
-                      <input type="number" min={0} placeholder="e.g. 1800"
-                        value={formData.annual_wfh_utility_costs || ''}
-                        onChange={e => setFormData(d => ({ ...d, annual_wfh_utility_costs: Number(e.target.value) }))}
-                        className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-3 px-4 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      />
+                {/* --- SECTION 4: Expenses & Reliefs --- */}
+                <div className="space-y-4">
+                  <h4 className="font-bold text-sm text-primary uppercase tracking-widest border-b border-outline-variant/20 pb-2">4. Expenses & Deductions</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-4">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-on-surface-variant">Annual Rent Paid (€)</label>
+                        <input type="number" value={formData.annual_rent_paid || ''} onChange={e => setFormData(d => ({ ...d, annual_rent_paid: Number(e.target.value) }))}
+                          className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2.5 px-4 text-sm" placeholder="0" />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-on-surface-variant">Qualifying Health Expenses (€)</label>
+                        <input type="number" value={formData.qualifying_health_expenses || ''} onChange={e => setFormData(d => ({ ...d, qualifying_health_expenses: Number(e.target.value) }))}
+                          className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2.5 px-4 text-sm" placeholder="Doctors, Meds, etc." />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-on-surface-variant">Nursing Home Fees (€)</label>
+                        <input type="number" value={formData.nursing_home_fees || ''} onChange={e => setFormData(d => ({ ...d, nursing_home_fees: Number(e.target.value) }))}
+                          className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2.5 px-4 text-sm" placeholder="0" />
+                      </div>
                     </div>
-                  )}
-                </div>
-
-                {/* Rent + Health */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium text-on-surface-variant">Annual rent paid (€)</label>
-                    <input type="number" min={0} placeholder="0"
-                      value={formData.annual_rent_paid || ''}
-                      onChange={e => setFormData(d => ({ ...d, annual_rent_paid: Number(e.target.value) }))}
-                      className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-3 px-4 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium text-on-surface-variant">Health expenses (€)</label>
-                    <input type="number" min={0} placeholder="0"
-                      value={formData.qualifying_health_expenses || ''}
-                      onChange={e => setFormData(d => ({ ...d, qualifying_health_expenses: Number(e.target.value) }))}
-                      className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-3 px-4 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-                </div>
-
-                {/* BIK + Employer health */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium text-on-surface-variant">Benefits in Kind (€)</label>
-                    <input type="number" min={0} placeholder="0"
-                      value={formData.bik || ''}
-                      onChange={e => setFormData(d => ({ ...d, bik: Number(e.target.value) }))}
-                      className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-3 px-4 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium text-on-surface-variant">Employer health ins. (€)</label>
-                    <input type="number" min={0} placeholder="0"
-                      value={formData.employer_health_premium || ''}
-                      onChange={e => setFormData(d => ({ ...d, employer_health_premium: Number(e.target.value) }))}
-                      className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-3 px-4 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
+                    <div className="space-y-4">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-on-surface-variant">Employer Health Premium (€)</label>
+                        <input type="number" value={formData.employer_health_premium || ''} onChange={e => setFormData(d => ({ ...d, employer_health_premium: Number(e.target.value) }))}
+                          className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2.5 px-4 text-sm" placeholder="BIK value" />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-on-surface-variant">Benefits in Kind (BIK) (€)</label>
+                        <input type="number" value={formData.bik || ''} onChange={e => setFormData(d => ({ ...d, bik: Number(e.target.value) }))}
+                          className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2.5 px-4 text-sm" placeholder="Company Car, etc." />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-on-surface-variant">Flat Rate Expenses (€)</label>
+                        <input type="number" value={formData.flat_rate_expense || ''} onChange={e => setFormData(d => ({ ...d, flat_rate_expense: Number(e.target.value) }))}
+                          className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2.5 px-4 text-sm" placeholder="Trade-specific" />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -586,10 +659,10 @@ export default function DashboardPage() {
                 )}
 
                 <button type="submit"
-                  className="w-full signature-gradient text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+                  className="w-full signature-gradient text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg text-lg"
                 >
-                  Show My Full Breakdown
-                  <span className="material-symbols-outlined">arrow_forward</span>
+                  Confirm Details & Unlock Optimizer
+                  <span className="material-symbols-outlined">analytics</span>
                 </button>
               </form>
             )}
@@ -614,7 +687,6 @@ export default function DashboardPage() {
               const usc           = deductions['USC']
               const prsi          = deductions['PRSI']
               const rentCredit    = deductions['Rent Tax Credit (20%)']
-              const wfhRelief     = (deductions['Income Protection Relief (20%)'] ?? 0) // proxy; actual WFH is in credits
               const healthRelief  = deductions['Health Expenses Relief (20%)'] ?? 0
               const incomeTaxPctR = gross > 0 ? (netPaye / gross) * 100 : 0
               const uscPctR       = gross > 0 ? (usc    / gross) * 100 : 0
@@ -700,6 +772,33 @@ export default function DashboardPage() {
                       )}
                     </div>
                   )}
+
+                  {/* Optimization Action Card */}
+                  <div className="mt-10 p-8 bg-surface-container-highest rounded-[2.5rem] border-2 border-primary/30 shadow-2xl relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:rotate-12 transition-transform duration-500">
+                      <span className="material-symbols-outlined text-8xl text-primary">rocket_launch</span>
+                    </div>
+                    
+                    <div className="relative z-10 space-y-6">
+                      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary text-white text-xs font-black uppercase tracking-widest">
+                        Recommended Next Step
+                      </div>
+                      
+                      <div>
+                        <h4 className="text-3xl font-black text-on-surface leading-tight">Pay Less Tax in 2026</h4>
+                        <p className="text-on-surface-variant text-lg mt-2 max-w-md">
+                          We've analyzed your €{fmt(gross)} income. You could potentially reclaim thousands by optimizing your pension and benefits.
+                        </p>
+                      </div>
+
+                      <Link href="/invest" className="block">
+                        <button className="w-full sm:w-auto signature-gradient text-white font-black py-5 px-10 rounded-2xl shadow-xl shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-3 text-xl">
+                          <span className="material-symbols-outlined">auto_fix_high</span>
+                          Start Optimization
+                        </button>
+                      </Link>
+                    </div>
+                  </div>
                 </>
               )
             })()}
@@ -909,21 +1008,6 @@ export default function DashboardPage() {
                             </div>
                           </div>
 
-                          {/* Confirm delete */}
-                          {isDeleting && (
-                            <div className="bg-error-container/40 rounded-xl p-3 flex items-center justify-between gap-3">
-                              <p className="text-xs text-on-error-container font-medium">Delete this goal?</p>
-                              <div className="flex gap-2">
-                                <button onClick={() => handleDeleteGoal(goal.id)} disabled={goalSaving}
-                                  className="bg-error text-white text-xs font-bold px-3 py-1.5 rounded-lg disabled:opacity-60"
-                                >Delete</button>
-                                <button onClick={() => setConfirmDeleteGoalId(null)}
-                                  className="bg-surface-container text-on-surface text-xs font-medium px-3 py-1.5 rounded-lg"
-                                >Cancel</button>
-                              </div>
-                            </div>
-                          )}
-
                           {/* Progress bar */}
                           <div>
                             <div className="h-2.5 bg-surface-container-high rounded-full overflow-hidden mb-2">
@@ -937,13 +1021,6 @@ export default function DashboardPage() {
                               <span>{pct.toFixed(0)}% of €{fmt(goal.target_amount)}</span>
                             </div>
                           </div>
-
-                          {/* Remaining */}
-                          {!done && (
-                            <p className="text-sm font-semibold text-on-surface">
-                              €{fmt(remaining)} <span className="text-on-surface-variant font-normal">more to go</span>
-                            </p>
-                          )}
 
                           {/* Add savings inline form */}
                           {isAdding && (
@@ -982,7 +1059,7 @@ export default function DashboardPage() {
                 <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
                   <span className="material-symbols-outlined text-5xl text-on-surface-variant/30">savings</span>
                   <p className="text-on-surface-variant text-sm">No savings goals yet</p>
-                  <p className="text-xs text-on-surface-variant/60 max-w-xs">Set a goal and track your progress — whether it&apos;s a house deposit, holiday, or emergency fund.</p>
+                  <p className="text-xs text-on-surface-variant/60 max-w-xs">Set a goal and track your progress.</p>
                   <button
                     onClick={() => setAddingGoal(true)}
                     className="signature-gradient text-white font-bold py-2.5 px-5 rounded-xl text-sm mt-2 flex items-center gap-1.5"

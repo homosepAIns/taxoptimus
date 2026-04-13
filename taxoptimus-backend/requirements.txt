@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic
+requests
+scipy
+groq
+reportlab
+pypdfium2
+Pillow
+matplotlib
+requests

@@ -62,12 +62,56 @@ export type TaxProfile = {
   id: string
   user_id: string
   employment_type: 'PAYE' | 'Self-Employed'
+  age: number
+  marital_status: string
+  medical_card: boolean
+  tax_year: number
+  
+  // Extra income
+  second_income: number
+  rent_a_room_income: number
+  micro_generation_income: number
+  
+  // Life circumstance credits
+  is_blind: boolean
+  has_incapacitated_child: boolean
+  claims_home_carer: boolean
+  claims_single_child_carer: boolean
+  claims_dependent_relative: boolean
+  widowed_years_since: number
+  
+  // Expenses & Reliefs
   remote_working_days: number
   annual_wfh_utility_costs: number
   annual_rent_paid: number
   qualifying_health_expenses: number
+  qualifying_tuition_fees: number
+  flat_rate_expense: number
+  nursing_home_fees: number
+  employee_health_insurance: number
   bik: number
   employer_health_premium: number
+  additional_tax_credits: number
+  
+  // Optimizer Levers
+  required_liquid_cash: number
+  pension_contribution: number
+  voucher_allocation: number
+  cycle_to_work: number
+  cycle_type: 'regular' | 'ebike'
+  cycle_to_work_mode: 'annual' | 'lump'
+  travel_pass: number
+  income_protection_premium: number
+  charitable_donations: number
+  eiis_investment: number
+  deeds_of_covenant: number
+  
+  // Optimizer Weights
+  weight_pension: number
+  weight_cycle: number
+  weight_travel: number
+  weight_ip: number
+
   calc_result: Record<string, unknown> | null
   created_at: string
 }

@@ -1,188 +1,419 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase, type TaxProfile } from '@/lib/supabase'
 import BottomNavBar from '@/components/BottomNavBar'
 import TopAppBar from '@/components/TopAppBar'
 
-type Risk = 'low' | 'balanced' | 'high'
+type SetupStep = 'employment' | 'extra_income' | 'credits' | 'expenses' | 'ready'
 
 export default function InvestPage() {
-  const [surplus, setSurplus] = useState(1200)
-  const [age, setAge] = useState(34)
-  const [risk, setRisk] = useState<Risk>('balanced')
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [isOptimizing, setIsOptimizing] = useState(false)
+  const [taxProfile, setTaxProfile] = useState<any>(null)
+  
+  // Setup Flow State
+  const [setupStep, setSetupStep] = useState<SetupStep>('employment')
+  const [formData, setFormData] = useState<any>({
+    employment_type: 'PAYE',
+    tax_year: 2026,
+    second_income: 0,
+    rent_a_room_income: 0,
+    micro_generation_income: 0,
+    is_blind: false,
+    has_incapacitated_child: false,
+    claims_home_carer: false,
+    claims_single_child_carer: false,
+    claims_dependent_relative: false,
+    medical_card: false,
+    widowed_years_since: -1,
+    annual_rent_paid: 0,
+    qualifying_health_expenses: 0,
+    nursing_home_fees: 0,
+    employee_health_insurance: 0,
+    qualifying_tuition_fees: 0,
+    flat_rate_expense: 0,
+    bik: 0,
+    employer_health_premium: 0,
+    remote_working_days: 0,
+    annual_wfh_utility_costs: 0,
+    additional_tax_credits: 0
+  })
 
-  const prsa = Math.round(surplus * 0.5)
-  const etf = Math.round(surplus * 0.3)
-  const bonds = surplus - prsa - etf
-  const annualRelief = prsa * 12 * 0.4
+  // Bounds & Optimization
+  const [bounds, setBounds] = useState<{ min_take_home: number; max_take_home: number } | null>(null)
+  const [requiredLiquidCash, setRequiredLiquidCash] = useState(0)
+  const [optimalInvestments, setOptimalInvestments] = useState<any>(null)
+  const [calcData, setCalcData] = useState<any>(null)
 
+  useEffect(() => {
+    async function load() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) { router.replace('/login'); return }
+
+      const { data: profile } = await supabase.from('tax_profiles')
+        .select('*').eq('user_id', session.user.id).maybeSingle()
+      
+      if (profile) {
+        setTaxProfile(profile)
+        setFormData((prev: any) => ({ ...prev, ...profile }))
+        setSetupStep('ready')
+        fetchBounds(session.access_token)
+      }
+      setLoading(false)
+    }
+    load()
+  }, [router])
+
+  async function fetchBounds(token: string) {
+    try {
+      const res = await fetch('/api/tax/bounds', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: {}, investments: {} }) // Backend pulls from DB
+      })
+      const bData = await res.json()
+      if (bData.min_take_home) {
+        setBounds(bData)
+        setRequiredLiquidCash(Math.round((bData.max_take_home + bData.min_take_home) / 2))
+      }
+    } catch (err) {
+      console.error("Failed to fetch bounds", err)
+    }
+  }
+
+  async function handleSaveProfile() {
+    setLoading(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    const { data, error } = await supabase.from('tax_profiles').upsert({
+      user_id: session?.user.id,
+      ...formData
+    }, { onConflict: 'user_id' }).select().single()
+
+    if (error) {
+      console.error('Error saving profile:', error)
+      alert(`Error saving profile: ${error.message}`)
+      setLoading(false)
+      return
+    }
+
+    if (data) {
+      setTaxProfile(data)
+      setSetupStep('ready')
+      fetchBounds(session!.access_token)
+    }
+    setLoading(false)
+  }
+
+  async function handleOptimize() {
+    setIsOptimizing(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    try {
+      const res = await fetch('/api/tax/optimize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({
+          required_liquid_cash: requiredLiquidCash
+        })
+      })
+      const data = await res.json()
+      if (data.optimal_investments) {
+        setOptimalInvestments(data.optimal_investments)
+        setCalcData(data.calculation)
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setIsOptimizing(false)
+    }
+  }
+
+  if (loading) return <div className="min-h-screen bg-surface flex items-center justify-center"><span className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" /></div>
+
+  // ── RENDER: ONBOARDING WIZARD ───────────────────────────────────────────────
+  if (setupStep !== 'ready') {
+    return (
+      <div className="bg-surface text-on-surface min-h-screen pb-32">
+        <TopAppBar />
+        <main className="pt-32 px-6 max-w-xl mx-auto">
+          <div className="mb-10 text-center">
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-primary">
+              <span className="material-symbols-outlined text-3xl">query_stats</span>
+            </div>
+            <h1 className="text-3xl font-black">Strategy Onboarding</h1>
+            <p className="text-on-surface-variant mt-2">Let's collect the missing pieces to build your tax strategy.</p>
+          </div>
+
+          <div className="bg-surface-container-low rounded-[2rem] p-8 border border-outline-variant/10 shadow-sm">
+            {setupStep === 'employment' && (
+              <div className="space-y-6">
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <span className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-xs">1</span>
+                  Employment Type
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {['PAYE', 'Self-Employed'].map(t => (
+                    <button key={t} type="button" onClick={() => setFormData({...formData, employment_type: t as any})}
+                      className={`py-4 rounded-2xl font-bold border-2 transition-all ${formData.employment_type === t ? 'bg-primary/10 border-primary text-primary' : 'border-outline-variant/20 hover:border-primary/30'}`}
+                    >{t}</button>
+                  ))}
+                </div>
+                <button type="button" onClick={() => setSetupStep('extra_income')} className="w-full bg-primary text-white py-4 rounded-2xl font-bold mt-4">Continue</button>
+              </div>
+            )}
+
+            {setupStep === 'extra_income' && (
+              <div className="space-y-6">
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <span className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-xs">2</span>
+                  Additional Income
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-on-surface-variant uppercase ml-1">Spouse / 2nd Income (€)</label>
+                    <input type="number" value={formData.second_income} onChange={e => setFormData({...formData, second_income: Number(e.target.value)})}
+                      className="w-full bg-surface-container-lowest border-none rounded-2xl py-4 px-5 mt-1 focus:ring-2 focus:ring-primary/20" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-on-surface-variant uppercase ml-1">Rent-a-Room Income (€)</label>
+                    <input type="number" value={formData.rent_a_room_income} onChange={e => setFormData({...formData, rent_a_room_income: Number(e.target.value)})}
+                      className="w-full bg-surface-container-lowest border-none rounded-2xl py-4 px-5 mt-1 focus:ring-2 focus:ring-primary/20" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-on-surface-variant uppercase ml-1">Micro-gen Income (€)</label>
+                    <input type="number" value={formData.micro_generation_income} onChange={e => setFormData({...formData, micro_generation_income: Number(e.target.value)})}
+                      className="w-full bg-surface-container-lowest border-none rounded-2xl py-4 px-5 mt-1 focus:ring-2 focus:ring-primary/20" />
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setSetupStep('employment')} className="flex-1 bg-surface-container-high py-4 rounded-2xl font-bold">Back</button>
+                  <button type="button" onClick={() => setSetupStep('credits')} className="flex-[2] bg-primary text-white py-4 rounded-2xl font-bold">Continue</button>
+                </div>
+              </div>
+            )}
+
+            {setupStep === 'credits' && (
+              <div className="space-y-6">
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <span className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-xs">3</span>
+                  Tax Credits
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { key: 'medical_card', label: 'Medical Card', icon: 'medical_card' },
+                    { key: 'claims_home_carer', label: 'Home Carer', icon: 'home_health' },
+                    { key: 'is_blind', label: 'Reg. Blind', icon: 'visibility_off' },
+                    { key: 'has_incapacitated_child', label: 'Incap. Child', icon: 'child_care' },
+                    { key: 'claims_single_child_carer', label: 'Single Carer', icon: 'person_raised_hand' },
+                    { key: 'claims_dependent_relative', label: 'Dep. Relative', icon: 'family_restroom' }
+                  ].map(item => (
+                    <button key={item.key} type="button" onClick={() => setFormData({...formData, [item.key]: !formData[item.key]})}
+                      className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all ${formData[item.key] ? 'bg-primary/10 border-primary text-primary' : 'border-outline-variant/20 bg-surface-container-lowest'}`}
+                    >
+                      <span className="material-symbols-outlined text-2xl">{item.icon}</span>
+                      <span className="font-bold text-xs text-center">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setSetupStep('extra_income')} className="flex-1 bg-surface-container-high py-4 rounded-2xl font-bold">Back</button>
+                  <button type="button" onClick={() => setSetupStep('expenses')} className="flex-[2] bg-primary text-white py-4 rounded-2xl font-bold">Continue</button>
+                </div>
+              </div>
+            )}
+
+            {setupStep === 'expenses' && (
+              <div className="space-y-6">
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <span className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-xs">4</span>
+                  Expenses & Claims
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[45vh] overflow-y-auto pr-2 pb-4">
+                  {[
+                    { key: 'annual_rent_paid', label: 'Annual Rent (€)' },
+                    { key: 'qualifying_health_expenses', label: 'Health Expenses (€)' },
+                    { key: 'nursing_home_fees', label: 'Nursing Home Fees (€)' },
+                    { key: 'employee_health_insurance', label: 'Health Insurance (€)' },
+                    { key: 'qualifying_tuition_fees', label: 'Tuition Fees (€)' },
+                    { key: 'flat_rate_expense', label: 'Flat Rate Expenses (€)' },
+                    { key: 'bik', label: 'Benefits in Kind (€)' },
+                    { key: 'employer_health_premium', label: 'Employer Health Prem. (€)' },
+                    { key: 'additional_tax_credits', label: 'Misc Tax Credits (€)' },
+                  ].map(field => (
+                    <div key={field.key}>
+                      <label className="text-[10px] font-bold text-on-surface-variant uppercase ml-1 block truncate">{field.label}</label>
+                      <input type="number" value={formData[field.key as keyof typeof formData] as number} onChange={e => setFormData({...formData, [field.key]: Number(e.target.value)})}
+                        className="w-full bg-surface-container-lowest border border-outline-variant/10 rounded-2xl py-3 px-4 mt-1 focus:ring-2 focus:ring-primary/20 text-sm" />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-3 pt-4 border-t border-outline-variant/10">
+                  <button type="button" onClick={() => setSetupStep('credits')} className="flex-1 bg-surface-container-high py-4 rounded-2xl font-bold">Back</button>
+                  <button type="button" onClick={handleSaveProfile} className="flex-[2] signature-gradient text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2">
+                    {loading ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Finish & Optimize'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </main>
+        <BottomNavBar />
+      </div>
+    )
+  }
+
+  // ── RENDER: MAIN OPTIMIZATION UI ───────────────────────────────────────────
   return (
     <div className="bg-surface text-on-surface min-h-screen pb-32">
       <TopAppBar />
 
       <main className="pt-24 px-6 max-w-5xl mx-auto">
-        {/* Header */}
-        <section className="mb-10">
-          <h1 className="text-4xl font-extrabold tracking-tight text-on-surface mb-2">Asset Allocation</h1>
-          <p className="text-on-surface-variant text-lg max-w-2xl">Optimize your Irish tax efficiency with our intelligent engine. Input your details to generate a bespoke allocation strategy.</p>
-        </section>
+        <header className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
+          <div>
+            <h1 className="text-4xl font-extrabold tracking-tight mb-2">Maximize My Savings</h1>
+            <p className="text-on-surface-variant text-lg">Decide your take-home pay, and we'll optimize the rest.</p>
+          </div>
+          <button type="button"
+            onClick={() => setSetupStep('employment')}
+            className="flex items-center gap-2 px-4 py-2 bg-surface-container-high hover:bg-surface-container-highest text-sm font-bold rounded-xl transition-colors border border-outline-variant/10"
+          >
+            <span className="material-symbols-outlined text-lg">tune</span>
+            Edit Variables
+          </button>
+        </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left: Inputs */}
+          
+          {/* Left: The Big Question */}
           <div className="lg:col-span-5 space-y-6">
-            <div className="bg-surface-container-lowest p-8 rounded-2xl">
+            <div className="bg-surface-container-lowest p-8 rounded-3xl border border-outline-variant/10 shadow-sm">
               <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary">tune</span>
-                Parameters
+                <span className="material-symbols-outlined text-primary">payments</span>
+                The Cash Question
               </h3>
-              <div className="space-y-6">
-                {/* Monthly Surplus */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-on-surface-variant px-1">Monthly Surplus (€)</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">€</span>
+
+              {bounds ? (
+                <div className="space-y-10">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-end">
+                      <label className="text-sm font-bold text-on-surface-variant uppercase tracking-wider">Desired Annual Take-Home</label>
+                      <span className="text-4xl font-black text-primary">€{requiredLiquidCash.toLocaleString()}</span>
+                    </div>
+                    
                     <input
-                      className="w-full bg-surface-container-low border-none rounded-xl py-4 pl-10 pr-4 focus:ring-2 focus:ring-primary-container text-on-surface font-bold text-lg"
-                      type="number"
-                      value={surplus}
-                      onChange={(e) => setSurplus(Number(e.target.value))}
+                      className="w-full h-3 bg-surface-container-high rounded-full appearance-none cursor-pointer accent-primary"
+                      max={bounds.max_take_home} 
+                      min={bounds.min_take_home} 
+                      step={500} 
+                      type="range"
+                      value={requiredLiquidCash}
+                      onChange={(e) => setRequiredLiquidCash(Number(e.target.value))}
                     />
-                  </div>
-                  <p className="text-[11px] text-on-surface-variant px-1">Available capital after essential expenses.</p>
-                </div>
 
-                {/* Age Slider */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-on-surface-variant px-1">Current Age</label>
-                  <input
-                    className="w-full h-2 bg-surface-container-high rounded-full appearance-none cursor-pointer accent-primary"
-                    max={75} min={18} type="range"
-                    value={age}
-                    onChange={(e) => setAge(Number(e.target.value))}
-                  />
-                  <div className="flex justify-between text-sm font-bold text-on-surface">
-                    <span>18</span>
-                    <span className="bg-primary-container px-3 py-1 rounded-full text-on-primary-container">{age} Years</span>
-                    <span>75</span>
+                    <div className="flex justify-between text-[11px] font-bold text-on-surface-variant uppercase pt-1">
+                      <div className="text-left">
+                        <p className="opacity-60 mb-0.5">Absolute Minimum</p>
+                        <p className="text-on-surface">€{Math.round(bounds.min_take_home).toLocaleString()}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="opacity-60 mb-0.5">Absolute Maximum</p>
+                        <p className="text-on-surface">€{Math.round(bounds.max_take_home).toLocaleString()}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                {/* Risk Tolerance */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-on-surface-variant px-1">Risk Tolerance</label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {(['low', 'balanced', 'high'] as Risk[]).map((r) => (
-                      <button
-                        key={r}
-                        onClick={() => setRisk(r)}
-                        className={`py-3 px-2 rounded-xl text-sm font-semibold capitalize transition-colors ${risk === r ? 'bg-primary text-white shadow-md' : 'bg-surface-container-high text-on-surface hover:bg-secondary-container'}`}
-                      >
-                        {r.charAt(0).toUpperCase() + r.slice(1)}
-                      </button>
+                  <button type="button"
+                    onClick={handleOptimize}
+                    disabled={isOptimizing}
+                    className="w-full signature-gradient text-white py-5 rounded-2xl font-black text-xl shadow-xl shadow-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                  >
+                    {isOptimizing ? <span className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin" /> : <><span className="material-symbols-outlined">auto_fix_high</span> Optimize Strategy</>}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 gap-4">
+                  <span className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                  <p className="text-sm text-on-surface-variant">Calculating your limits…</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: The Strategy */}
+          <div className="lg:col-span-7 space-y-6">
+            <div className="bg-surface-container-lowest p-8 rounded-3xl border border-outline-variant/10 min-h-[560px] flex flex-col shadow-sm">
+              <div className="flex justify-between items-start mb-10">
+                <div>
+                  <h3 className="text-2xl font-black">Mathematical Strategy</h3>
+                  <p className="text-on-surface-variant text-sm">Where your money is working for you</p>
+                </div>
+                {calcData && (
+                  <div className="text-right">
+                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Effective Tax Rate</p>
+                    <p className="text-2xl font-black text-primary">{calcData['Summary']['Effective Tax Rate (%)']}%</p>
+                  </div>
+                )}
+              </div>
+
+              {optimalInvestments ? (
+                <div className="flex-1 flex flex-col">
+                  <div className="space-y-8 flex-1">
+                    {[
+                      { id: 'pension', label: 'Pension (PRSA)', amount: optimalInvestments.pension_contribution, color: 'bg-primary', icon: 'savings', desc: 'Saves tax at your highest rate (40%).' },
+                      { id: 'cycle', label: 'Cycle to Work', amount: optimalInvestments.cycle_to_work, color: 'bg-emerald-500', icon: 'directions_bike', desc: 'Pre-tax bike purchase.' },
+                      { id: 'travel', label: 'Travel Pass', amount: optimalInvestments.travel_pass, color: 'bg-blue-500', icon: 'train', desc: 'Tax-free public transport.' },
+                      { id: 'ip', label: 'Income Protection', amount: optimalInvestments.income_protection_premium, color: 'bg-amber-500', icon: 'security', desc: '20% tax credit on premiums.' },
+                    ].filter(item => item.amount > 0).map((item) => (
+                      <div key={item.id} className="relative group">
+                        <div className="flex justify-between items-end mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-xl ${item.color}/10 flex items-center justify-center text-on-surface`}>
+                              <span className="material-symbols-outlined">{item.icon}</span>
+                            </div>
+                            <div>
+                              <p className="font-bold text-lg leading-none">{item.label}</p>
+                              <p className="text-xs text-on-surface-variant mt-1">{item.desc}</p>
+                            </div>
+                          </div>
+                          <p className="text-2xl font-black">€{Math.round(item.amount).toLocaleString()}</p>
+                        </div>
+                        <div className="h-3 bg-surface-container-high rounded-full overflow-hidden">
+                          <div className={`h-full ${item.color} rounded-full transition-all duration-700`} style={{ width: `${(item.amount / (bounds?.max_take_home || 1)) * 100}%` }} />
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </div>
 
-                <button className="w-full signature-gradient text-white py-4 rounded-2xl font-bold text-lg shadow-lg active:scale-[0.98] transition-transform mt-4 flex items-center justify-center gap-2">
-                  <span className="material-symbols-outlined">analytics</span>
-                  Calculate Engine
-                </button>
-              </div>
-            </div>
-
-            {/* Tax Relief Card */}
-            <div className="bg-primary-container text-on-primary-container p-6 rounded-2xl relative overflow-hidden">
-              <div className="relative z-10">
-                <p className="text-sm font-bold uppercase tracking-wider opacity-80 mb-1">Tax Relief Potential</p>
-                <h2 className="text-3xl font-extrabold">€{annualRelief.toLocaleString()} <span className="text-lg font-normal">/ year</span></h2>
-                <p className="text-sm mt-3 opacity-90 leading-relaxed italic">&ldquo;Optimizing your pension contributions could reduce your effective tax rate by 12.5% this year.&rdquo;</p>
-              </div>
-              <span className="material-symbols-outlined absolute -bottom-4 -right-4 text-9xl opacity-10">savings</span>
-            </div>
-          </div>
-
-          {/* Right: Results */}
-          <div className="lg:col-span-7 space-y-6">
-            <div className="bg-surface-container-lowest p-8 rounded-2xl">
-              <div className="flex justify-between items-end mb-8">
-                <div>
-                  <h3 className="text-xl font-bold">Suggested Allocation</h3>
-                  <p className="text-on-surface-variant text-sm">Based on Irish Tax Regulations 2024</p>
-                </div>
-                <button className="text-primary font-bold text-sm flex items-center gap-1 hover:underline">
-                  <span className="material-symbols-outlined text-lg">picture_as_pdf</span>
-                  Generate Report
-                </button>
-              </div>
-
-              {/* Donut Chart */}
-              <div className="flex flex-col md:flex-row items-center gap-12 mb-10">
-                <div className="relative w-48 h-48 flex-shrink-0">
-                  <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                    <circle className="stroke-surface-container-high" cx="18" cy="18" fill="none" r="16" strokeWidth="4" />
-                    <circle className="stroke-primary" cx="18" cy="18" fill="none" r="16" strokeDasharray="50 100" strokeLinecap="round" strokeWidth="4" />
-                    <circle className="stroke-secondary" cx="18" cy="18" fill="none" r="16" strokeDasharray="30 100" strokeDashoffset="-50" strokeLinecap="round" strokeWidth="4" />
-                    <circle className="stroke-primary-container" cx="18" cy="18" fill="none" r="16" strokeDasharray="20 100" strokeDashoffset="-80" strokeLinecap="round" strokeWidth="4" />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-2xl font-extrabold">€{(surplus / 1000).toFixed(1)}k</span>
-                    <span className="text-[10px] uppercase font-bold text-on-surface-variant">Monthly</span>
-                  </div>
-                </div>
-                <div className="flex-1 space-y-4 w-full">
-                  {[
-                    { color: 'bg-primary', label: 'PRSA / Pension', pct: 50, amount: prsa },
-                    { color: 'bg-secondary', label: 'Equity ETFs', pct: 30, amount: etf },
-                    { color: 'bg-primary-container', label: 'State Prize Bonds', pct: 20, amount: bonds },
-                  ].map((row) => (
-                    <div key={row.label} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-3 h-3 rounded-full ${row.color}`}></div>
-                        <span className="font-bold text-on-surface">{row.label}</span>
-                      </div>
-                      <span className="text-on-surface-variant font-medium">{row.pct}% (€{row.amount})</span>
+                  <div className="mt-12 p-8 bg-surface-container-low rounded-3xl flex justify-between items-center border border-outline-variant/10">
+                    <div>
+                      <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1">Total Annual Savings</p>
+                      <p className="text-4xl font-black text-on-surface">€{Math.round(optimalInvestments.pension_contribution + optimalInvestments.cycle_to_work + optimalInvestments.travel_pass + optimalInvestments.income_protection_premium).toLocaleString()}</p>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Breakdown Cards */}
-              <div className="space-y-4">
-                <div className="p-5 rounded-2xl bg-surface-container-low border-l-4 border-primary">
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-bold text-lg">PRSA Contribution</h4>
-                    <span className="px-2 py-1 bg-primary-container text-on-primary-container text-[10px] font-bold rounded uppercase">Max Tax Relief</span>
-                  </div>
-                  <p className="text-sm text-on-surface-variant mb-3">Deductible at your marginal tax rate (40%). Provides immediate relief on current income tax.</p>
-                  <div className="flex gap-4 text-xs font-bold text-primary">
-                    <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">check_circle</span> No Exit Tax</span>
-                    <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">check_circle</span> Employer Matching</span>
+                    <div className="text-right">
+                      <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Direct Tax Relief</p>
+                      <p className="text-4xl font-black text-emerald-600">✓</p>
+                    </div>
                   </div>
                 </div>
-                <div className="p-5 rounded-2xl bg-surface-container-low border-l-4 border-secondary">
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-bold text-lg">World Equity ETF</h4>
-                    <span className="px-2 py-1 bg-secondary-container text-on-secondary-container text-[10px] font-bold rounded uppercase">Deemed Disposal</span>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6">
+                  <div className="w-24 h-24 rounded-full bg-primary/5 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-5xl text-primary/20">model_training</span>
                   </div>
-                  <p className="text-sm text-on-surface-variant mb-3">Diversified exposure. Subject to 41% exit tax every 8 years. Recommended for long-term growth.</p>
-                  <div className="flex gap-4 text-xs font-bold text-secondary">
-                    <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">warning</span> 8-Year Rule</span>
-                    <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">trending_up</span> High Growth</span>
-                  </div>
-                </div>
-                <div className="p-5 rounded-2xl bg-surface-container-low border-l-4 border-primary-container">
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-bold text-lg">State Prize Bonds</h4>
-                    <span className="px-2 py-1 bg-surface-container-highest text-on-surface-variant text-[10px] font-bold rounded uppercase">100% Tax Free</span>
-                  </div>
-                  <p className="text-sm text-on-surface-variant mb-3">Safe capital preservation with potential for winnings. No DIRT or CGT on any prizes won.</p>
-                  <div className="flex gap-4 text-xs font-bold text-on-primary-container">
-                    <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">lock</span> Capital Secure</span>
-                    <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">celebration</span> Weekly Draws</span>
+                  <div className="max-w-xs px-6">
+                    <h4 className="font-bold text-xl text-on-surface">Waiting for choice</h4>
+                    <p className="text-sm text-on-surface-variant mt-2 leading-relaxed">Tell us how much cash you need in your pocket, and our engine will find the most efficient way to use the rest.</p>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
+
         </div>
       </main>
 
