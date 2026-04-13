@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { flushPendingCalc } from '@/lib/flushPendingCalc'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -17,12 +18,13 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
       setError(error.message)
       setLoading(false)
     } else {
+      if (data.session) await flushPendingCalc(data.session.user.id)
       router.push('/dashboard')
     }
   }

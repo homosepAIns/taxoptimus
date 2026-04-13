@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { flushPendingCalc } from '@/lib/flushPendingCalc'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -44,6 +45,7 @@ export default function SignupPage() {
       // If enabled, show the "check your email" screen
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
+        await flushPendingCalc(session.user.id)
         router.push('/dashboard')
       } else {
         setSuccess(true)

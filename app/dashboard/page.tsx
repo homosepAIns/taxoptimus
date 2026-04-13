@@ -116,16 +116,12 @@ export default function DashboardPage() {
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 18 ? 'Good afternoon' : 'Good evening'
   const monthLabel = now.toLocaleDateString('en-IE', { month: 'long', year: 'numeric' })
 
-  // Current-month transactions
-  const monthTx = transactions.filter(tx => {
-    const d = new Date(tx.transaction_date)
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-  })
-  const totalExpenses = monthTx.reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+  // All uploaded transactions
+  const totalExpenses = transactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
 
-  // Top 4 categories by spend
+  // Top 4 categories by spend (all time)
   const catMap = new Map<string, { total: number; count: number }>()
-  monthTx.forEach(tx => {
+  transactions.forEach(tx => {
     const cat = tx.category || 'Other'
     const prev = catMap.get(cat) ?? { total: 0, count: 0 }
     catMap.set(cat, { total: prev.total + Math.abs(tx.amount), count: prev.count + 1 })
@@ -185,11 +181,13 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
 
-          {/* ── Monthly Flow ── */}
+          {/* ── Financial Overview ── */}
           <div className="md:col-span-8 bg-surface-container-lowest rounded-2xl p-6 flex flex-col justify-between">
             <div className="flex justify-between items-center mb-8">
-              <h3 className="text-xl font-bold">Monthly Flow</h3>
-              <span className="text-sm text-on-surface-variant bg-surface-container-low px-3 py-1 rounded-full">{monthLabel}</span>
+              <h3 className="text-xl font-bold">Financial Overview</h3>
+              <span className="text-sm text-on-surface-variant bg-surface-container-low px-3 py-1 rounded-full">
+                {transactions.length > 0 ? `${transactions.length} transactions` : monthLabel}
+              </span>
             </div>
             {profile ? (
               <div className="grid grid-cols-2 gap-8">
@@ -332,7 +330,7 @@ export default function DashboardPage() {
           {/* ── Expense Categories ── */}
           <div className="md:col-span-12 lg:col-span-5 bg-surface-container-lowest rounded-2xl p-8">
             <h3 className="text-xl font-bold mb-1">Expense Categories</h3>
-            <p className="text-xs text-on-surface-variant mb-6">{monthLabel}</p>
+            <p className="text-xs text-on-surface-variant mb-6">All uploaded documents</p>
 
             {categories.length > 0 ? (
               <>
