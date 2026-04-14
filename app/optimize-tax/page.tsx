@@ -115,13 +115,14 @@ export default function InvestPage() {
     const { data: { session } } = await supabase.auth.getSession()
     
     // Always save the latest core variables
-    const { error: incError } = await supabase.from('income_profiles').insert({
-      user_id: session?.user.id,
-      gross_income: formData.gross_income,
-      tax_status: formData.tax_status,
-      age: formData.age,
-      has_medical_card: formData.medical_card
-    })
+    const { error: incError } = await supabase.from('income_profiles').upsert({
+      user_id:                 session?.user.id,
+      gross_income:            formData.gross_income,
+      tax_status:              formData.tax_status,
+      age:                     formData.age,
+      has_medical_card:        formData.medical_card
+    }, { onConflict: 'user_id' })
+
     if (incError) {
       console.error('Error saving basic profile:', incError)
       alert(`Error saving base profile: ${incError.message}`)
@@ -548,7 +549,7 @@ export default function InvestPage() {
                           €{Math.round(
                             (optimalInvestments.pension_contribution + optimalInvestments.cycle_to_work + optimalInvestments.travel_pass + optimalInvestments.income_protection_premium + optimalInvestments.eiis_investment + optimalInvestments.deeds_of_covenant) 
                             - 
-                            ((optimalInvestments.pension_contribution + optimalInvestments.cycle_to_work + optimalInvestments.travel_pass + optimalInvestments.eiis_investment + optimalInvestments.deeds_of_covenant) * (calcData['Summary']['Marginal Tax Rate (%)'] / 100) + (optimalInvestments.income_protection_premium * 0.20))
+                            ((optimalInvestments.pension_contribution + optimalInvestments.cycle_to_work + optimalInvestments.travel_pass + optimalInvestments.income_protection_premium + optimalInvestments.eiis_investment + optimalInvestments.deeds_of_covenant) * (calcData['Summary']['Marginal Tax Rate (%)'] / 100))
                           ).toLocaleString()}
                         </span>
                       </div>
@@ -674,7 +675,7 @@ export default function InvestPage() {
                             <span className="font-bold text-emerald-600">−€{Math.round(calcData['Tax Deductions']['Total Accumulated Tax Credits'] as number).toLocaleString()}</span>
                           </div>
                           
-                          <div className="flex justify-between items-center p-3.5 bg-error/5 rounded-2xl border border-error/10 text-sm mt-4!">
+                          <div className="flex justify-between items-center p-3.5 bg-error/5 rounded-2xl border border-error/10 text-sm !mt-4">
                             <span className="font-bold text-error/90">Net Income Tax (PAYE)</span>
                             <span className="font-black text-error">€{Math.round(calcData['Tax Deductions']['Net Income Tax (PAYE)'] as number).toLocaleString()}</span>
                           </div>
@@ -689,7 +690,7 @@ export default function InvestPage() {
                             <span className="font-bold text-error">€{Math.round(calcData['Tax Deductions']['PRSI'] as number).toLocaleString()}</span>
                           </div>
 
-                          <div className="flex justify-between items-center p-3.5 bg-surface-container-lowest rounded-2xl border-2 border-outline-variant/20 mt-6! shadow-sm">
+                          <div className="flex justify-between items-center p-3.5 bg-surface-container-lowest rounded-2xl border-2 border-outline-variant/20 !mt-6 shadow-sm">
                              <span className="text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Final Total Tax Paid</span>
                              <span className="font-black text-on-surface text-xl">€{Math.round(calcData['Summary']['Total Tax Deduced'] as number).toLocaleString()}</span>
                           </div>

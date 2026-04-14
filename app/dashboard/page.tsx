@@ -381,31 +381,48 @@ export default function DashboardPage() {
       <TopAppBar />
 
       <main className="mt-20 px-6 max-w-5xl mx-auto">
-        {/* ── Greeting & hero number ── */}
-        <section className="mt-4 md:mt-8 mb-6 md:mb-10">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-            <div>
-              <p className="text-on-surface-variant font-medium mb-1 text-sm md:text-base">{greeting}, {userName} 👋</p>
+        {/* ── Greeting & Hero Section ── */}
+        <section className="mt-4 md:mt-8 mb-10 overflow-hidden rounded-[2.5rem] relative min-h-[320px] flex items-center shadow-2xl shadow-primary/10 border border-outline-variant/10">
+          <img 
+            src="/finance_image.jpeg" 
+            className="absolute inset-0 w-full h-full object-cover" 
+            alt="Financial Dashboard Hero" 
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#006D36] via-[#006D36]/90 to-transparent dark:from-[#0D1C32] dark:via-[#0D1C32]/90"></div>
+          
+          <div className="relative z-10 w-full px-8 md:px-12 flex flex-col md:flex-row md:items-end md:justify-between gap-8 py-10">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md w-fit px-4 py-2 rounded-full border border-white/20">
+                <span className="w-2 h-2 rounded-full bg-[#50C878] animate-pulse"></span>
+                <p className="text-white/90 font-medium text-sm">{greeting}, {userName} 👋</p>
+              </div>
+              
               {profile ? (
                 <>
-                  <h1 className="text-4xl md:text-[3.5rem] font-extrabold tracking-tight text-on-surface leading-tight md:leading-none">
-                    €{fmt(profile.net_monthly)}
-                    <span className="text-lg md:text-xl font-medium text-on-surface-variant ml-2 md:ml-3">/month net</span>
-                  </h1>
-                  <p className="text-on-surface-variant mt-2 text-xs md:text-sm">
-                    {TAX_STATUS_LABELS[profile.tax_status]} · Gross €{fmt(gross)}/yr
-                  </p>
+                  <div className="space-y-1">
+                    <p className="text-white/70 text-sm font-bold uppercase tracking-widest">Expected Net Monthly</p>
+                    <h1 className="text-5xl md:text-7xl font-black tracking-tight text-white leading-none">
+                      €{fmt(profile.net_monthly)}
+                    </h1>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="bg-[#50C878] text-[#002D17] text-[10px] font-black px-2.5 py-1 rounded-md uppercase">Calculated</span>
+                    <p className="text-white/60 text-sm font-medium">
+                      {TAX_STATUS_LABELS[profile.tax_status]} · Gross €{fmt(gross)}/yr
+                    </p>
+                  </div>
                 </>
               ) : (
-                <>
-                  <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-on-surface">No tax profile yet</h1>
-                  <p className="text-on-surface-variant mt-1 text-xs md:text-sm">Complete the free calculator to see your take-home pay.</p>
-                </>
+                <div className="space-y-2">
+                  <h1 className="text-3xl md:text-4xl font-black text-white leading-tight">Your Financial<br/>Overview Awaits</h1>
+                  <p className="text-white/60 text-sm max-w-sm">Complete the 2026 tax calculation to see your monthly take-home pay here.</p>
+                </div>
               )}
             </div>
-            <Link href="/upload" className="w-full md:w-auto">
-              <button className="emerald-gradient text-white w-full md:w-auto px-6 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-primary/10">
-                <span className="material-symbols-outlined">upload_file</span>
+
+            <Link href="/upload" className="flex-shrink-0">
+              <button className="bg-white text-[#006D36] px-8 py-4 rounded-2xl font-black flex items-center gap-3 hover:bg-[#50C878] hover:text-[#002D17] transition-all transform hover:scale-[1.05] active:scale-95 shadow-xl shadow-black/20 text-lg">
+                <span className="material-symbols-outlined text-2xl">upload_file</span>
                 Upload Statement
               </button>
             </Link>
@@ -481,14 +498,9 @@ export default function DashboardPage() {
                 <p className="text-sm opacity-70 mt-2">Set up your profile to see surplus</p>
               )}
             </div>
-            <div className="absolute top-0 right-0 w-full h-full opacity-10 pointer-events-none overflow-hidden">
-              <img 
-                src="/finance_image.jpeg" 
-                className="h-full w-full object-cover" 
-                alt="Finance Background" 
-              />
-              <div className="absolute inset-0 bg-gradient-to-l from-transparent via-[#006D36]/40 to-[#006D36] dark:to-[#002D17]"></div>
-            </div>
+            <span className="absolute -bottom-6 -right-6 material-symbols-outlined text-[10rem] opacity-5 rotate-12 pointer-events-none">
+              monitoring
+            </span>
           </div>
 
           {/* ── Tax Breakdown ── */}

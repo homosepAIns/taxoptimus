@@ -44,12 +44,12 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="lg:col-span-5 relative">
-              <div className="relative z-10 rounded-[2.5rem] overflow-hidden shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-700">
+              <div className="relative z-10 rounded-[2.5rem] overflow-hidden shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-700 aspect-video md:aspect-[4/5] lg:aspect-square">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="https://img.freepik.com/premium-photo/modern-3d-isometric-illustration-financial-data-analytics-dashboard-laptop-with-charts-coins-investment-concept-premium-quality_1020697-1522.jpg"
-                  alt="TaxOptimus Dashboard"
-                  className="w-full h-auto object-cover"
+                  src="/finance_image.jpeg"
+                  alt="TaxOptimus Dashboard Preview"
+                  className="w-full h-full object-cover"
                 />  </div>
               <div className="absolute -top-10 -right-10 w-64 h-64 bg-primary-container/30 rounded-full blur-3xl -z-0"></div>
               <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-secondary-container/40 rounded-full blur-3xl -z-0"></div>
