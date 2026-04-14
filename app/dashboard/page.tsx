@@ -105,8 +105,6 @@ export default function DashboardPage() {
     employment_type:            'PAYE',
     second_income:              0,
     rent_a_room_income:         0,
-    micro_generation_income:    0,
-    is_blind:                   false,
     has_incapacitated_child:    false,
     claims_home_carer:          false,
     claims_single_child_carer:  false,
@@ -119,7 +117,6 @@ export default function DashboardPage() {
     bik:                        0,
     employer_health_premium:    0,
     flat_rate_expense:          0,
-    nursing_home_fees:          0,
     employee_health_insurance:  0,
   })
 
@@ -196,8 +193,6 @@ export default function DashboardPage() {
           employment_type:            existingTaxProfile.employment_type as any,
           second_income:              existingTaxProfile.second_income || 0,
           rent_a_room_income:         existingTaxProfile.rent_a_room_income || 0,
-          micro_generation_income:    existingTaxProfile.micro_generation_income || 0,
-          is_blind:                   existingTaxProfile.is_blind || false,
           has_incapacitated_child:    existingTaxProfile.has_incapacitated_child || false,
           claims_home_carer:          existingTaxProfile.claims_home_carer || false,
           claims_single_child_carer:  existingTaxProfile.claims_single_child_carer || false,
@@ -210,7 +205,6 @@ export default function DashboardPage() {
           bik:                        existingTaxProfile.bik || 0,
           employer_health_premium:    existingTaxProfile.employer_health_premium || 0,
           flat_rate_expense:          existingTaxProfile.flat_rate_expense || 0,
-          nursing_home_fees:          existingTaxProfile.nursing_home_fees || 0,
           employee_health_insurance:  existingTaxProfile.employee_health_insurance || 0,
         })
         // Use stored calc result — no API call needed
@@ -269,7 +263,6 @@ export default function DashboardPage() {
           gross_income:               profile.gross_income,
           age:                        profile.age,
           tax_status:                 profile.tax_status,
-          has_medical_card:           profile.has_medical_card,
           ...formData,
         }),
       })
@@ -488,8 +481,13 @@ export default function DashboardPage() {
                 <p className="text-sm opacity-70 mt-2">Set up your profile to see surplus</p>
               )}
             </div>
-            <div className="absolute -right-8 -bottom-8 opacity-20">
-              <span className="material-symbols-outlined text-9xl">auto_graph</span>
+            <div className="absolute top-0 right-0 w-full h-full opacity-10 pointer-events-none overflow-hidden">
+              <img 
+                src="/finance_image.jpeg" 
+                className="h-full w-full object-cover" 
+                alt="Finance Background" 
+              />
+              <div className="absolute inset-0 bg-gradient-to-l from-transparent via-[#006D36]/40 to-[#006D36] dark:to-[#002D17]"></div>
             </div>
           </div>
 
@@ -580,11 +578,6 @@ export default function DashboardPage() {
                       <input type="number" value={formData.rent_a_room_income || ''} onChange={e => setFormData(d => ({ ...d, rent_a_room_income: Number(e.target.value) }))}
                         className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2.5 px-4 text-sm" placeholder="Tax-free < €14k" />
                     </div>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-medium text-on-surface-variant">Micro-gen (€)</label>
-                      <input type="number" value={formData.micro_generation_income || ''} onChange={e => setFormData(d => ({ ...d, micro_generation_income: Number(e.target.value) }))}
-                        className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2.5 px-4 text-sm" placeholder="Solar/Wind" />
-                    </div>
                   </div>
                 </div>
 
@@ -597,7 +590,7 @@ export default function DashboardPage() {
                       { key: 'claims_home_carer', label: 'Home Carer', icon: 'home_health', link: 'HOME_CARER_CREDIT' },
                       { key: 'claims_single_child_carer', label: 'Single Carer', icon: 'person_raised_hand', link: 'SINGLE_PERSON_CHILD_CARER_CREDIT' },
                       { key: 'claims_dependent_relative', label: 'Dep. Relative', icon: 'family_restroom', link: 'DEPENDENT_RELATIVE_CREDIT' },
-                      { key: 'medical_card', label: 'Medical Card', icon: 'medical_card', link: 'USC_REDUCED_RATES_MEDICAL_CARD' },
+                      { key: 'medical_card', label: 'Medical Card', icon: 'badge', link: 'USC_REDUCED_RATES_MEDICAL_CARD' },
                     ].map(item => (
                       <button key={item.key} type="button" onClick={() => setFormData(d => ({ ...d, [item.key]: !d[item.key as keyof TaxFormData] }))}
                         className={`flex items-center gap-2 p-3 rounded-xl text-xs font-bold transition-all border ${formData[item.key as keyof TaxFormData] ? 'bg-primary/10 border-primary text-primary' : 'bg-surface-container-lowest border-outline-variant/20 text-on-surface-variant hover:border-primary/50'}`}

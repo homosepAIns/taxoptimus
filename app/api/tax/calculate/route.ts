@@ -18,23 +18,15 @@ function toMaritalStatus(taxStatus: string): { marital_status: string; claims_si
 }
 
 export async function POST(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${token}` } } }
-  )
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
+  // Allow anonymous calculations (e.g. for landing page chat).
+  // Data is only persisted if the frontend saves it after login.
   const body = await req.json()
   const {
     // Basic Profile
     gross_income,
     age,
     tax_status,
+    medical_card,
     has_medical_card,
     employment_type = 'PAYE',
     tax_year = 2026,
@@ -88,16 +80,14 @@ export async function POST(req: NextRequest) {
       age: Number(age),
       marital_status,
       employment_type,
-      medical_card: !!has_medical_card,
+      medical_card: !!(medical_card ?? has_medical_card),
       second_income: Number(second_income),
       rent_a_room_income: Number(rent_a_room_income),
-      micro_generation_income: Number(micro_generation_income),
       annual_rent_paid: Number(annual_rent_paid),
       qualifying_health_expenses: Number(qualifying_health_expenses),
       bik: Number(bik),
       employer_health_premium: Number(employer_health_premium),
       additional_tax_credits: Number(additional_tax_credits),
-      is_blind: !!is_blind,
       has_incapacitated_child: !!has_incapacitated_child,
       claims_home_carer: !!claims_home_carer,
       claims_single_child_carer: !!final_claims_scc,
@@ -108,7 +98,6 @@ export async function POST(req: NextRequest) {
       annual_wfh_utility_costs: Number(annual_wfh_utility_costs),
       qualifying_tuition_fees: Number(qualifying_tuition_fees),
       flat_rate_expense: Number(flat_rate_expense),
-      nursing_home_fees: Number(nursing_home_fees),
       employee_health_insurance: Number(employee_health_insurance),
     },
     investments: {

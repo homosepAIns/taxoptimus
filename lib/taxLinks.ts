@@ -54,12 +54,13 @@ export const TAX_REFERENCE_LINKS = {
     "PENSION_RELIEF_HOW_TO_CLAIM": "https://www.revenue.ie/en/jobs-and-pensions/pension/relief/how-to-claim.aspx",
 
     // ── INVESTMENT ────────────────────────────────────────────────────────────
-    "EIIS": "https://www.revenue.ie/en/personal-tax-credits-reliefs-and-exemptions/investments/eiis/index.aspx",
+    "EIIS": "https://www.revenue.ie/en/personal-tax-credits-reliefs-and-exemptions/investment/relief-corporate/employment-investment-incentive.aspx",
 
     // ── COVENANTS ─────────────────────────────────────────────────────────────
-    "DEEDS_OF_COVENANT": "https://www.revenue.ie/en/personal-tax-credits-reliefs-and-exemptions/covenants/index.aspx",
-    "DEEDS_OF_COVENANT_QUALIFYING": "https://www.revenue.ie/en/personal-tax-credits-reliefs-and-exemptions/covenants/qualifying-covenants.aspx",
-    "DEEDS_OF_COVENANT_HOW_TO_CLAIM": "https://www.revenue.ie/en/personal-tax-credits-reliefs-and-exemptions/covenants/how-to-claim.aspx",
+    "DEEDS_OF_COVENANT": "https://www.revenue.ie/en/personal-tax-credits-reliefs-and-exemptions/donations-and-covenants/deeds-of-covenant/index.aspx",
+    "DEEDS_OF_COVENANT_QUALIFYING": "https://www.revenue.ie/en/personal-tax-credits-reliefs-and-exemptions/donations-and-covenants/deeds-of-covenant/covenants-that-qualify-for-relief.aspx",
+    "DEEDS_OF_COVENANT_HOW_TO_CLAIM": "https://www.revenue.ie/en/personal-tax-credits-reliefs-and-exemptions/donations-and-covenants/deeds-of-covenant/your-tax-responsibilities.aspx",
+    "DEEDS_OF_COVENANT_MAKING": "https://www.revenue.ie/en/personal-tax-credits-reliefs-and-exemptions/donations-and-covenants/deeds-of-covenant/making-a-deed-of-covenant.aspx",
 
     // ── REMOTE WORK ───────────────────────────────────────────────────────────
     "REMOTE_WORKING_RELIEF": "https://www.revenue.ie/en/personal-tax-credits-reliefs-and-exemptions/income-and-employment/e-working/index.aspx",

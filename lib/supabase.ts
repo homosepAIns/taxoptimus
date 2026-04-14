@@ -66,20 +66,18 @@ export type TaxProfile = {
   marital_status: string
   medical_card: boolean
   tax_year: number
-  
+
   // Extra income
   second_income: number
   rent_a_room_income: number
-  micro_generation_income: number
-  
+
   // Life circumstance credits
-  is_blind: boolean
   has_incapacitated_child: boolean
   claims_home_carer: boolean
   claims_single_child_carer: boolean
   claims_dependent_relative: boolean
   widowed_years_since: number
-  
+
   // Expenses & Reliefs
   remote_working_days: number
   annual_wfh_utility_costs: number
@@ -87,12 +85,13 @@ export type TaxProfile = {
   qualifying_health_expenses: number
   qualifying_tuition_fees: number
   flat_rate_expense: number
-  nursing_home_fees: number
   employee_health_insurance: number
   bik: number
   employer_health_premium: number
   additional_tax_credits: number
-  
+  eiis_max_willing: number
+  deeds_max_willing: number
+
   // Optimizer Levers
   required_liquid_cash: number
   pension_contribution: number
@@ -105,7 +104,7 @@ export type TaxProfile = {
   charitable_donations: number
   eiis_investment: number
   deeds_of_covenant: number
-  
+
   // Optimizer Weights
   weight_pension: number
   weight_cycle: number

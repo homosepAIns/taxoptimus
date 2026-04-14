@@ -46,8 +46,11 @@ export default function LandingPage() {
             <div className="lg:col-span-5 relative">
               <div className="relative z-10 rounded-[2.5rem] overflow-hidden shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-700">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img alt="Mobile app preview" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDkiTP1YAoE0Z7W62hgI7KUaeg0_t3RO4xbOqmro4YxduzHnoIuPKYCt8mmCapdiDso7xMdYiFJa7T1_XEQpPANfLk0tzBLS5HPdoFTZGibdlMIv1xLHhAXuNQUVP2I6A-WvivEoJMEHOZV-mLG0JHxrDSwwQ4XFx0MEn30mJENX_6Vxsz9brJKM0XBk2ZWgzsqOpYke6wVtrF7aMSrKhOEgDPZDP-MpQ5hd5PxT4Z3bCeg2XZz6caiOO95elt_M-1AoIeusWvtxRk" className="w-full h-auto" />
-              </div>
+                <img
+                  src="https://img.freepik.com/premium-photo/modern-3d-isometric-illustration-financial-data-analytics-dashboard-laptop-with-charts-coins-investment-concept-premium-quality_1020697-1522.jpg"
+                  alt="TaxOptimus Dashboard"
+                  className="w-full h-auto object-cover"
+                />  </div>
               <div className="absolute -top-10 -right-10 w-64 h-64 bg-primary-container/30 rounded-full blur-3xl -z-0"></div>
               <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-secondary-container/40 rounded-full blur-3xl -z-0"></div>
             </div>
@@ -57,24 +60,42 @@ export default function LandingPage() {
         {/* Did You Know */}
         <section id="insights" className="container mx-auto px-6 py-12">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2 bg-on-surface text-surface rounded-[2rem] p-8 md:p-12 flex flex-col justify-between relative overflow-hidden">
+            {/* The €600 Million Reality */}
+            <div className="md:col-span-2 bg-on-surface text-surface rounded-[3rem] p-8 md:p-12 flex flex-col justify-between relative overflow-hidden">
               <div className="relative z-10 space-y-6">
-                <span className="bg-primary-container text-on-primary-container px-4 py-1 rounded-full text-sm font-bold">DID YOU KNOW?</span>
-                <h2 className="font-headline text-3xl md:text-4xl font-bold leading-tight">
-                  The average Irish person could save <span className="text-primary-container">€2,400</span> a year by optimizing their tax and utility bills.
+                <span className="bg-primary-container/20 text-primary-container px-4 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase border border-primary-container/30">The €600 Million Reality</span>
+                <h2 className="font-headline text-3xl md:text-5xl font-black leading-tight tracking-tight">
+                  Over <span className="text-primary-container">80%</span> of PAYE returns results in an overpayment.
                 </h2>
-                <p className="text-surface-variant/80 text-lg">TaxOptimus automatically identifies these gaps in your spending and provides direct links to claim your reliefs.</p>
+                <p className="text-surface-variant/80 text-lg md:text-xl max-w-2xl leading-relaxed">
+                  As of March 2026, more than <span className="text-white font-bold">€637 million</span> has already been refunded to savvy taxpayers who took a second look at their returns.
+                </p>
               </div>
-              <div className="absolute right-0 bottom-0 opacity-10 rotate-12">
-                <span className="material-symbols-outlined text-[15rem]">euro_symbol</span>
+              <div className="absolute right-0 bottom-0 opacity-5 rotate-12 -mr-12 -mb-12">
+                <span className="material-symbols-outlined text-[20rem]">insights</span>
               </div>
             </div>
-            <div className="bg-primary-container rounded-[2rem] p-8 flex flex-col items-center text-center justify-center space-y-4">
-              <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
-                <span className="material-symbols-outlined text-white text-3xl" style={{ fontVariationSettings: '"FILL" 1' }}>bolt</span>
+
+            <div className="space-y-6 flex flex-col">
+              {/* The Unclaimed Fortune */}
+              <div className="flex-1 bg-primary-container rounded-[2.5rem] p-8 flex flex-col justify-center space-y-4 border border-primary/10">
+                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                  <span className="material-symbols-outlined text-on-primary-container text-2xl">account_balance</span>
+                </div>
+                <h3 className="font-headline text-xl font-bold text-on-primary-container">The Unclaimed Fortune</h3>
+                <p className="text-on-primary-container/80 text-sm leading-relaxed">
+                  Approximately <span className="font-bold text-on-primary-container">€389 million</span> was overpaid in 2024 alone, as 500,000 people failed to claim their legal credits.
+                </p>
               </div>
-              <h3 className="font-headline text-2xl font-bold text-on-primary-container">Switch &amp; Save</h3>
-              <p className="text-on-primary-container/80">Average users save €450 on energy bills within the first 30 days of using TaxOptimus.</p>
+
+              {/* The Individual Windfall */}
+              <div className="flex-1 bg-surface-container-high rounded-[2.5rem] p-8 flex flex-col justify-center space-y-2 border border-outline-variant/10 shadow-sm shadow-black/5">
+                <h3 className="text-xs font-black text-on-surface-variant uppercase tracking-widest">Typical Refund</h3>
+                <p className="text-3xl font-black text-primary tracking-tighter">€300 – €1,500</p>
+                <p className="text-[11px] text-on-surface-variant/70 leading-relaxed font-medium">
+                  Average PAYE refund per review. Can increase significantly when backdated across the full 4-year eligibility window.
+                </p>
+              </div>
             </div>
           </div>
         </section>
@@ -89,7 +110,7 @@ export default function LandingPage() {
             {[
               { icon: 'receipt_long', title: 'Receipt Scanning', desc: 'Snapshot your receipts and our AI automatically categorizes them for medical expenses or business tax claims.' },
               { icon: 'description', title: 'Payslip Parser', desc: "Upload your PDF payslips to monitor pension contributions, PRSI classes, and ensure you're on the right tax band." },
-              { icon: 'trending_up', title: 'Investment Suggestions', desc: 'Hyper-local advice on top-rated savings accounts, state bonds, and diversified ETFs with Irish tax implications built-in.' },
+              { icon: 'auto_fix_high', title: 'Tax Strategy Optimizer', desc: 'Set your target take-home pay and let our engine mathematically solve the most efficient way to use your remaining income.' },
             ].map((f) => (
               <div key={f.title} className="group bg-surface-container-lowest p-8 rounded-[2rem] hover:bg-surface-container-low transition-colors duration-300">
                 <div className="mb-8 inline-block p-4 rounded-2xl bg-surface-container-high text-primary group-hover:bg-primary-container group-hover:text-on-primary-container transition-all">

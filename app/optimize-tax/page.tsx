@@ -25,8 +25,6 @@ export default function InvestPage() {
     tax_year: 2026,
     second_income: 0,
     rent_a_room_income: 0,
-    micro_generation_income: 0,
-    is_blind: false,
     has_incapacitated_child: false,
     claims_home_carer: false,
     claims_single_child_carer: false,
@@ -35,7 +33,6 @@ export default function InvestPage() {
     widowed_years_since: -1,
     annual_rent_paid: 0,
     qualifying_health_expenses: 0,
-    nursing_home_fees: 0,
     employee_health_insurance: 0,
     qualifying_tuition_fees: 0,
     flat_rate_expense: 0,
@@ -271,14 +268,6 @@ export default function InvestPage() {
                     <input type="number" value={formData.rent_a_room_income} onChange={e => setFormData({...formData, rent_a_room_income: Number(e.target.value)})}
                       className="w-full bg-surface-container-lowest border-none rounded-2xl py-4 px-5 mt-1 focus:ring-2 focus:ring-primary/20" />
                   </div>
-                  <div>
-                    <label className="text-xs font-bold text-on-surface-variant uppercase ml-1 flex items-center">
-                      Micro-gen Income (€)
-                      <InfoLink taxKey="MICRO_GENERATION_EXEMPTION" />
-                    </label>
-                    <input type="number" value={formData.micro_generation_income} onChange={e => setFormData({...formData, micro_generation_income: Number(e.target.value)})}
-                      className="w-full bg-surface-container-lowest border-none rounded-2xl py-4 px-5 mt-1 focus:ring-2 focus:ring-primary/20" />
-                  </div>
                 </div>
                 <div className="flex gap-3">
                   <button type="button" onClick={() => setSetupStep('employment')} className="flex-1 bg-surface-container-high py-4 rounded-2xl font-bold">Back</button>
@@ -297,7 +286,6 @@ export default function InvestPage() {
                   {[
                     { key: 'medical_card', label: 'Medical Card', icon: 'badge', link: 'USC_REDUCED_RATES_MEDICAL_CARD' },
                     { key: 'claims_home_carer', label: 'Home Carer', icon: 'home_health', link: 'HOME_CARER_CREDIT' },
-                    { key: 'is_blind', label: 'Reg. Blind', icon: 'visibility_off', link: 'BLIND_PERSONS_CREDIT' },
                     { key: 'has_incapacitated_child', label: 'Incap. Child', icon: 'child_care', link: 'INCAPACITATED_CHILD_CREDIT' },
                     { key: 'claims_single_child_carer', label: 'Single Carer', icon: 'person_raised_hand', link: 'SINGLE_PERSON_CHILD_CARER_CREDIT' },
                     { key: 'claims_dependent_relative', label: 'Dep. Relative', icon: 'family_restroom', link: 'DEPENDENT_RELATIVE_CREDIT' }
@@ -330,7 +318,6 @@ export default function InvestPage() {
                   {[
                     { key: 'annual_rent_paid', label: 'Annual Rent (€)', link: 'RENT_TAX_CREDIT' },
                     { key: 'qualifying_health_expenses', label: 'Health Expenses (€)', link: 'HEALTH_EXPENSES_RELIEF' },
-                    { key: 'nursing_home_fees', label: 'Nursing Home Fees (€)', link: 'NURSING_HOME_FEES_RELIEF' },
                     { key: 'employee_health_insurance', label: 'Health Insurance (€)', link: 'HEALTH_INSURANCE_PREMIUMS_RELIEF' },
                     { key: 'qualifying_tuition_fees', label: 'Tuition Fees (€)', link: 'TUITION_FEES_RELIEF' },
                     { key: 'flat_rate_expense', label: 'Flat Rate Expenses (€)', link: 'FLAT_RATE_EXPENSES' },
@@ -364,13 +351,19 @@ export default function InvestPage() {
                 <p className="text-sm text-on-surface-variant">Tell us what limits you want to place on advanced tax shelters.</p>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-xs font-bold text-on-surface-variant uppercase ml-1">Max EIIS Investment / yr (€)</label>
+                    <label className="text-xs font-bold text-on-surface-variant uppercase ml-1 flex items-center">
+                      Max EIIS Investment / yr (€)
+                      <InfoLink taxKey="EIIS" />
+                    </label>
                     <input type="number" value={formData.eiis_max_willing || ''} onChange={e => setFormData({...formData, eiis_max_willing: Number(e.target.value)})}
                       className="w-full bg-surface-container-lowest border border-outline-variant/10 rounded-2xl py-4 px-5 mt-1 focus:ring-2 focus:ring-primary/20 text-sm" placeholder="e.g. 5000" />
                     <p className="text-[10px] text-on-surface-variant/70 mt-1 ml-2">High-risk startup investments with massive tax reliefs.</p>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-on-surface-variant uppercase ml-1">Max Deeds of Covenant / yr (€)</label>
+                    <label className="text-xs font-bold text-on-surface-variant uppercase ml-1 flex items-center">
+                      Max Deeds of Covenant / yr (€)
+                      <InfoLink taxKey="DEEDS_OF_COVENANT" />
+                    </label>
                     <input type="number" value={formData.deeds_max_willing || ''} onChange={e => setFormData({...formData, deeds_max_willing: Number(e.target.value)})}
                       className="w-full bg-surface-container-lowest border border-outline-variant/10 rounded-2xl py-4 px-5 mt-1 focus:ring-2 focus:ring-primary/20 text-sm" placeholder="e.g. 2000" />
                     <p className="text-[10px] text-on-surface-variant/70 mt-1 ml-2">Formal legal payments to dependents, adult children, or elderly parents.</p>
@@ -592,6 +585,7 @@ export default function InvestPage() {
                              if (k.includes('pension')) return 'PENSION_RELIEF';
                              if (k.includes('cycle')) return 'CYCLE_TO_WORK';
                              if (k.includes('travel pass')) return 'TRAVEL_PASS_TAXSAVER';
+                             if (k.includes('income protection')) return 'INCOME_PROTECTION_RELIEF';
                              if (k.includes('health insurance')) return 'HEALTH_INSURANCE_PREMIUMS_RELIEF';
                              return '';
                            };
@@ -615,9 +609,12 @@ export default function InvestPage() {
                               .filter(([k, v]) => typeof v === 'number' && v > 0 && k !== 'Total Accumulated Tax Credits' && k.includes('Deduction') && k !== 'Gross Income Tax' && k !== 'Net Income Tax (PAYE)')
                               .sort((a, b) => (b[1] as number) - (a[1] as number))
                               .map(([key, value]) => (
-                                <div key={key} className="flex justify-between items-center p-3.5 bg-surface-container-lowest rounded-2xl border border-outline-variant/10 text-sm">
-                                  <span className="font-semibold text-on-surface-variant truncate pr-2 flex items-center">{key} <InfoLink taxKey={mapToTaxKey(key)} /></span>
-                                  <span className="font-bold text-primary">€{Math.round(value as number).toLocaleString()}</span>
+                                <div key={key} className="flex justify-between items-start p-4 bg-surface-container-lowest rounded-2xl border border-outline-variant/10 text-sm">
+                                  <div className="flex items-center gap-2 mr-4">
+                                    <span className="font-semibold text-on-surface-variant">{key}</span>
+                                    <InfoLink taxKey={mapToTaxKey(key)} className="flex-shrink-0" />
+                                  </div>
+                                  <span className="font-bold text-primary whitespace-nowrap flex-shrink-0">€{Math.round(value as number).toLocaleString()}</span>
                                 </div>
                             ))}
                             {Object.entries(calcData['Tax Deductions']).filter(([k, v]) => typeof v === 'number' && v > 0 && k !== 'Total Accumulated Tax Credits' && k.includes('Deduction') && k !== 'Gross Income Tax' && k !== 'Net Income Tax (PAYE)').length === 0 && (
@@ -644,9 +641,12 @@ export default function InvestPage() {
                               .filter(([k, v]) => typeof v === 'number' && v > 0 && k !== 'Total Accumulated Tax Credits' && (k.includes('Credit') || k.includes('Relief')) && !k.includes('Deduction'))
                               .sort((a, b) => (b[1] as number) - (a[1] as number))
                               .map(([key, value]) => (
-                                <div key={key} className="flex justify-between items-center p-3.5 bg-surface-container-lowest rounded-2xl border border-outline-variant/10 text-sm">
-                                  <span className="font-semibold text-on-surface-variant truncate pr-2 flex items-center">{key.replace(' (20%)', '')} <InfoLink taxKey={mapToTaxKey(key)} /></span>
-                                  <span className="font-bold text-emerald-600">−€{Math.round(value as number).toLocaleString()}</span>
+                                <div key={key} className="flex justify-between items-start p-4 bg-surface-container-lowest rounded-2xl border border-outline-variant/10 text-sm">
+                                  <div className="flex items-center gap-2 mr-4">
+                                    <span className="font-semibold text-on-surface-variant">{key.replace(' (20%)', '')}</span>
+                                    <InfoLink taxKey={mapToTaxKey(key)} className="flex-shrink-0" />
+                                  </div>
+                                  <span className="font-bold text-emerald-600 whitespace-nowrap flex-shrink-0">−€{Math.round(value as number).toLocaleString()}</span>
                                 </div>
                             ))}
                           </div>
