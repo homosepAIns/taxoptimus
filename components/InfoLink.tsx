@@ -16,7 +16,7 @@ export default function InfoLink({ taxKey, className = '' }: Props) {
       target="_blank"
       rel="noopener noreferrer"
       className={`inline-flex items-center justify-center ml-1.5 text-on-surface-variant/40 hover:text-primary transition-colors ${className}`}
-      title="View Revenue.ie reference"
+      title="Official Revenue.ie reference"
       onClick={(e) => e.stopPropagation()}
     >
       <span className="material-symbols-outlined text-[16px]">info</span>

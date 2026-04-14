@@ -30,7 +30,7 @@ export default function BottomNavBar() {
   if (loading || !user) return null
 
   return (
-    <nav className="md:hidden fixed bottom-0 w-full flex justify-around items-center px-4 pb-6 pt-2 bg-[#F9F9FF]/80 dark:bg-[#0D1C32]/80 backdrop-blur-md rounded-t-[1.5rem] z-50 shadow-[0px_-12px_32px_rgba(13,28,50,0.06)] border-t border-[#BDCABC]/20">
+    <nav className="fixed bottom-0 w-full flex justify-around items-center px-4 pb-6 pt-2 bg-[#F9F9FF]/80 dark:bg-[#0D1C32]/80 backdrop-blur-md rounded-t-[1.5rem] z-50 shadow-[0px_-12px_32px_rgba(13,28,50,0.06)] border-t border-[#BDCABC]/20">
       {navItems.map((item) => {
         const isActive = pathname === item.href
         const isAction = item.isAction

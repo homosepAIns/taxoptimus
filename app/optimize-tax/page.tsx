@@ -474,7 +474,13 @@ export default function InvestPage() {
               <div className="flex justify-between items-start mb-10">
                 <div>
                   <h3 className="text-2xl font-black">Mathematical Strategy</h3>
-                  <p className="text-on-surface-variant text-sm">Where your money is working for you</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-on-surface-variant text-sm">Where your money is working for you</p>
+                    <div className="flex items-center gap-1 text-[10px] text-on-surface-variant/60 font-medium italic">
+                      <span className="material-symbols-outlined text-[12px]">info</span>
+                      <span>Links to Revenue.ie</span>
+                    </div>
+                  </div>
                 </div>
                 {calcData && (
                   <div className="text-right">
@@ -561,11 +567,46 @@ export default function InvestPage() {
                       
                       {/* Left Column: Tax Shields Breakdown */}
                       <div className="space-y-8">
+                        {(() => {
+                           const mapToTaxKey = (key: string): string => {
+                             const k = key.toLowerCase();
+                             if (k.includes('rent a room')) return 'RENT_A_ROOM_RELIEF';
+                             if (k.includes('rent')) return 'RENT_TAX_CREDIT';
+                             if (k.includes('personal')) return 'PERSONAL_CREDIT';
+                             if (k.includes('employee')) return 'EMPLOYEE_TAX_CREDIT';
+                             if (k.includes('earned income')) return 'EARNED_INCOME_CREDIT';
+                             if (k.includes('health expenses')) return 'HEALTH_EXPENSES_RELIEF';
+                             if (k.includes('nursing home')) return 'NURSING_HOME_FEES_RELIEF';
+                             if (k.includes('tuition')) return 'TUITION_FEES_RELIEF';
+                             if (k.includes('remote working')) return 'REMOTE_WORKING_RELIEF';
+                             if (k.includes('home carer')) return 'HOME_CARER_CREDIT';
+                             if (k.includes('dependent relative')) return 'DEPENDENT_RELATIVE_CREDIT';
+                             if (k.includes('incapacitated child')) return 'INCAPACITATED_CHILD_CREDIT';
+                             if (k.includes('single child carer')) return 'SINGLE_PERSON_CHILD_CARER_CREDIT';
+                             if (k.includes('widow')) return 'WIDOWED_PARENT_CREDIT';
+                             if (k.includes('age tax credit')) return 'AGE_TAX_CREDIT';
+                             if (k.includes('blind tax credit')) return 'BLIND_PERSONS_CREDIT';
+                             if (k.includes('flat rate expense')) return 'FLAT_RATE_EXPENSES';
+                             if (k.includes('deeds of covenant')) return 'DEEDS_OF_COVENANT';
+                             if (k.includes('eiis')) return 'EIIS';
+                             if (k.includes('pension')) return 'PENSION_RELIEF';
+                             if (k.includes('cycle')) return 'CYCLE_TO_WORK';
+                             if (k.includes('travel pass')) return 'TRAVEL_PASS_TAXSAVER';
+                             if (k.includes('health insurance')) return 'HEALTH_INSURANCE_PREMIUMS_RELIEF';
+                             return '';
+                           };
+                           return (
+                             <>
                         <div>
-                          <h4 className="text-lg font-bold mb-2 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-primary">price_change</span>
-                            Pre-Tax Deductions
-                          </h4>
+                          <div className="flex justify-between items-end mb-2">
+                            <h4 className="text-lg font-bold flex items-center gap-2">
+                              <span className="material-symbols-outlined text-primary">price_change</span>
+                              Pre-Tax Deductions
+                            </h4>
+                            <div className="flex items-center gap-1 text-[10px] text-on-surface-variant/60 font-medium italic">
+                               <span className="material-symbols-outlined text-[12px]">info</span><span>Revenue.ie info</span>
+                            </div>
+                          </div>
                           <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
                             Subtracted from your salary <b>before</b> tax is calculated, sheltering money at your highest marginal rate (usually 40%).
                           </p>
@@ -575,7 +616,7 @@ export default function InvestPage() {
                               .sort((a, b) => (b[1] as number) - (a[1] as number))
                               .map(([key, value]) => (
                                 <div key={key} className="flex justify-between items-center p-3.5 bg-surface-container-lowest rounded-2xl border border-outline-variant/10 text-sm">
-                                  <span className="font-semibold text-on-surface-variant truncate pr-2">{key}</span>
+                                  <span className="font-semibold text-on-surface-variant truncate pr-2 flex items-center">{key} <InfoLink taxKey={mapToTaxKey(key)} /></span>
                                   <span className="font-bold text-primary">€{Math.round(value as number).toLocaleString()}</span>
                                 </div>
                             ))}
@@ -586,10 +627,15 @@ export default function InvestPage() {
                         </div>
 
                         <div>
-                          <h4 className="text-lg font-bold mb-2 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-emerald-600">receipt_long</span>
-                            Tax Credits & Flat Reliefs
-                          </h4>
+                          <div className="flex justify-between items-end mb-2">
+                            <h4 className="text-lg font-bold flex items-center gap-2">
+                              <span className="material-symbols-outlined text-emerald-600">receipt_long</span>
+                              Tax Credits & Flat Reliefs
+                            </h4>
+                            <div className="flex items-center gap-1 text-[10px] text-on-surface-variant/60 font-medium italic">
+                               <span className="material-symbols-outlined text-[12px]">info</span><span>Revenue.ie info</span>
+                            </div>
+                          </div>
                           <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
                             Subtracted <b>euro-for-euro</b> from the final tax you owe. (Medical reliefs and credits are legally applied at 20%).
                           </p>
@@ -599,12 +645,15 @@ export default function InvestPage() {
                               .sort((a, b) => (b[1] as number) - (a[1] as number))
                               .map(([key, value]) => (
                                 <div key={key} className="flex justify-between items-center p-3.5 bg-surface-container-lowest rounded-2xl border border-outline-variant/10 text-sm">
-                                  <span className="font-semibold text-on-surface-variant truncate pr-2">{key.replace(' (20%)', '')}</span>
+                                  <span className="font-semibold text-on-surface-variant truncate pr-2 flex items-center">{key.replace(' (20%)', '')} <InfoLink taxKey={mapToTaxKey(key)} /></span>
                                   <span className="font-bold text-emerald-600">−€{Math.round(value as number).toLocaleString()}</span>
                                 </div>
                             ))}
                           </div>
                         </div>
+                            </>
+                           );
+                        })()}
                       </div>
 
                       {/* Right Column: Taxes Paid */}

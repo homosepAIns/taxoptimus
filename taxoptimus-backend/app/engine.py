@@ -16,8 +16,6 @@ TAX_REGISTRY = {
         "EARNED_INCOME_CREDIT": 2000.0,
         "AGE_CREDIT_SINGLE": 245.0,
         "AGE_CREDIT_MARRIED": 490.0,
-        "BLIND_CREDIT_SINGLE": 1950.0,
-        "BLIND_CREDIT_MARRIED": 3900.0,
         "INCAPACITATED_CHILD_CREDIT": 3800.0,
         "DEPENDENT_RELATIVE_CREDIT": 305.0,
         "HOME_CARER_CREDIT": 1950.0,
@@ -41,8 +39,6 @@ TAX_REGISTRY = {
         "EARNED_INCOME_CREDIT": 2000.0,
         "AGE_CREDIT_SINGLE": 245.0,
         "AGE_CREDIT_MARRIED": 490.0,
-        "BLIND_CREDIT_SINGLE": 1950.0,
-        "BLIND_CREDIT_MARRIED": 3900.0,
         "INCAPACITATED_CHILD_CREDIT": 3800.0,
         "DEPENDENT_RELATIVE_CREDIT": 305.0,
         "HOME_CARER_CREDIT": 1950.0,
@@ -162,10 +158,8 @@ class IrishTaxCalculator:
         if profile.marital_status in ["Married_1_Income", "Married_2_Incomes"]:
             add("Married Tax Credit (Additional)", cfg["PERSONAL_CREDIT"])
             if profile.age >= 65: add("Age Tax Credit", cfg["AGE_CREDIT_MARRIED"])
-            if profile.is_blind: add("Blind Tax Credit", cfg["BLIND_CREDIT_MARRIED"])
         else:
             if profile.age >= 65: add("Age Tax Credit", cfg["AGE_CREDIT_SINGLE"])
-            if profile.is_blind: add("Blind Tax Credit", cfg["BLIND_CREDIT_SINGLE"])
 
         if profile.has_incapacitated_child: add("Incapacitated Child Tax Credit", cfg["INCAPACITATED_CHILD_CREDIT"])
         if profile.claims_home_carer: add("Home Carer Tax Credit", cfg["HOME_CARER_CREDIT"])
@@ -177,7 +171,6 @@ class IrishTaxCalculator:
             
         add("Employer Health Premium Relief (20%)", profile.employer_health_premium * 0.20)
         add("Health Expenses Relief (20%)", profile.qualifying_health_expenses * 0.20)
-        add("Nursing Home Fees Relief (20%)", profile.nursing_home_fees * 0.20)
         add("Employee Health Insurance Relief (20%)", profile.employee_health_insurance * 0.20)
         add("Remote Working Relief", IrishTaxCalculator.calculate_remote_working_relief(profile))
         add("Tuition Fees Relief", IrishTaxCalculator.calculate_tuition_fees_relief(profile))
@@ -209,13 +202,6 @@ class IrishTaxCalculator:
         if investments.cycle_to_work_mode == "annual":
             return cap / 4.0
         return cap
-
-    @staticmethod
-    def split_micro_generation_income(income: float) -> tuple[float, float]:
-        """Handles the €400 tax-free exemption for micro-generation income."""
-        taxable = max(0, income - 400.0)
-        tax_free = min(income, 400.0)
-        return taxable, tax_free
 
     @staticmethod
     def split_rent_a_room_income(income: float) -> tuple[float, float]:
@@ -280,9 +266,8 @@ class IrishTaxCalculator:
     def calculate_total_income(taxable_base: float, profile: UserProfile) -> float:
         """Calculates total income for USC/PRSI, including BIK and ancillary streams."""
         total_bik = profile.bik + profile.employer_health_premium
-        taxable_micro_gen, _ = IrishTaxCalculator.split_micro_generation_income(profile.micro_generation_income)
         taxable_rent_a_room, _ = IrishTaxCalculator.split_rent_a_room_income(profile.rent_a_room_income)
-        return taxable_base + total_bik + taxable_micro_gen + taxable_rent_a_room
+        return taxable_base + total_bik + taxable_rent_a_room
 
     @staticmethod
     def calculate_charitable_deduction(profile: UserProfile, investments: Investments) -> float:
@@ -312,14 +297,11 @@ class IrishTaxCalculator:
     @staticmethod
     def calculate_take_home(profile: UserProfile, investments: Investments, taxable_base: float, total_taxes: float) -> float:
         """Calculates final liquid cash available after all taxes and deductions."""
-        _, tax_free_micro_gen = IrishTaxCalculator.split_micro_generation_income(profile.micro_generation_income)
-        taxable_micro_gen, _ = IrishTaxCalculator.split_micro_generation_income(profile.micro_generation_income)
         taxable_rent_a_room, tax_free_rent_a_room = IrishTaxCalculator.split_rent_a_room_income(profile.rent_a_room_income)
 
         take_home = taxable_base - investments.pension_contribution - investments.eiis_investment - investments.deeds_of_covenant - investments.charitable_donations - investments.income_protection_premium - total_taxes
-        take_home += tax_free_rent_a_room + tax_free_micro_gen + taxable_micro_gen + taxable_rent_a_room
+        take_home += tax_free_rent_a_room + taxable_rent_a_room
         take_home -= profile.qualifying_health_expenses
-        take_home -= profile.nursing_home_fees
         take_home -= profile.employee_health_insurance
         take_home += investments.voucher_allocation
         return take_home
@@ -327,7 +309,7 @@ class IrishTaxCalculator:
     @staticmethod
     def calculate_effective_rate(profile: UserProfile, investments: Investments, total_taxes: float) -> float:
         """Calculates effective tax rate relative to total gross inflow."""
-        total_gross_inflow = profile.gross_income + profile.rent_a_room_income + profile.micro_generation_income + investments.voucher_allocation
+        total_gross_inflow = profile.gross_income + profile.rent_a_room_income + investments.voucher_allocation
         return (total_taxes / total_gross_inflow) * 100 if total_gross_inflow > 0 else 0.0
 
     @staticmethod
@@ -355,7 +337,6 @@ class IrishTaxCalculator:
             "Core Financials": {
                 "Gross Compensatory Value": profile.gross_income,
                 "Rent-a-Room Income": profile.rent_a_room_income,
-                "Micro-generation Income": profile.micro_generation_income,
                 "Voucher Allocation": investments.voucher_allocation,
                 "Cycle to Work": investments.cycle_to_work,
                 "Travel Pass": investments.travel_pass,
@@ -399,8 +380,8 @@ class IrishTaxCalculator:
     def _build_empty_response() -> dict:
         """Returns a zeroed out response for invalid or zero income cases."""
         return {
-            "Core Financials": {"Gross Compensatory Value": 0.0, "Rent-a-Room Income": 0.0, "Micro-generation Income": 0.0, "Voucher Allocation": 0.0, "Cycle to Work": 0.0, "Travel Pass": 0.0, "Pension Deduction": 0.0, "EIIS Investment": 0.0, "Deeds of Covenant": 0.0, "Out-of-Pocket Health Expenses": 0.0, "Benefits In Kind (BIK)": 0.0, "Employer Health Premium (BIK)": 0.0},
-            "Tax Deductions": {"Gross Income Tax": 0.0, "Tax Credits Applied": 0.0, "Net Income Tax (PAYE)": 0.0, "USC": 0.0, "PRSI": 0.0, "Rent Tax Credit (20%)": 0.0, "Cycle to Work": 0.0, "Travel Pass": 0.0, "Income Protection Relief (20%)": 0.0, "Nursing Home Fees Relief (20%)": 0.0, "Employee Health Insurance Relief (20%)": 0.0, "Charitable Donations": 0.0, "Charitable Deduction (Self-Employed)": 0.0, "EIIS Deduction": 0.0, "Deeds of Covenant Deduction": 0.0, "Health Expenses Relief (20%)": 0.0, "Employer Health Insurance Relief (20%)": 0.0},
+            "Core Financials": {"Gross Compensatory Value": 0.0, "Rent-a-Room Income": 0.0, "Voucher Allocation": 0.0, "Cycle to Work": 0.0, "Travel Pass": 0.0, "Pension Deduction": 0.0, "EIIS Investment": 0.0, "Deeds of Covenant": 0.0, "Out-of-Pocket Health Expenses": 0.0, "Benefits In Kind (BIK)": 0.0, "Employer Health Premium (BIK)": 0.0},
+            "Tax Deductions": {"Gross Income Tax": 0.0, "Tax Credits Applied": 0.0, "Net Income Tax (PAYE)": 0.0, "USC": 0.0, "PRSI": 0.0, "Rent Tax Credit (20%)": 0.0, "Cycle to Work": 0.0, "Travel Pass": 0.0, "Income Protection Relief (20%)": 0.0, "Employee Health Insurance Relief (20%)": 0.0, "Charitable Donations": 0.0, "Charitable Deduction (Self-Employed)": 0.0, "EIIS Deduction": 0.0, "Deeds of Covenant Deduction": 0.0, "Health Expenses Relief (20%)": 0.0, "Employer Health Insurance Relief (20%)": 0.0},
             "Summary": {"Total Tax Deduced": 0.0, "Take Home CASH": 0.0, "_raw_take_home": 0.0, "Effective Tax Rate (%)": 0.0, "Marginal Tax Rate (%)": 0.0}
         }
 

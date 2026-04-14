@@ -142,7 +142,7 @@ export default function ChatbotWidget() {
     <>
       {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-[5.5rem] md:bottom-4 right-4 z-50 w-[340px] sm:w-[380px] flex flex-col bg-surface-container-lowest rounded-3xl shadow-[0px_16px_48px_rgba(13,28,50,0.18)] border border-outline-variant/10 overflow-hidden"
+        <div className="fixed bottom-[5.5rem] right-4 z-50 w-[340px] sm:w-[380px] flex flex-col bg-surface-container-lowest rounded-3xl shadow-[0px_16px_48px_rgba(13,28,50,0.18)] border border-outline-variant/10 overflow-hidden"
           style={{ maxHeight: 'calc(100dvh - 10rem)' }}
         >
           {/* Header */}
@@ -232,7 +232,7 @@ export default function ChatbotWidget() {
       {/* Floating button */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="fixed bottom-[5.5rem] md:bottom-4 right-4 z-50 w-14 h-14 signature-gradient rounded-full shadow-[0px_8px_24px_rgba(0,109,54,0.35)] flex items-center justify-center active:scale-90 transition-all hover:shadow-[0px_12px_32px_rgba(0,109,54,0.45)]"
+        className="fixed bottom-[5.5rem] right-4 z-50 w-14 h-14 signature-gradient rounded-full shadow-[0px_8px_24px_rgba(0,109,54,0.35)] flex items-center justify-center active:scale-90 transition-all hover:shadow-[0px_12px_32px_rgba(0,109,54,0.45)]"
         aria-label="Open AI chat"
       >
         {open ? (

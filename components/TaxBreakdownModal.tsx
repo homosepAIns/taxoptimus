@@ -44,7 +44,14 @@ export default function TaxBreakdownModal({ data, onClose }: Props) {
         <div className="p-8 bg-surface-container-lowest border-b border-outline-variant/10 flex justify-between items-center">
           <div>
             <h2 className="font-headline font-extrabold text-2xl text-on-surface leading-tight">Detailed Tax Breakdown</h2>
-            <p className="text-on-surface-variant text-sm font-medium mt-1">Full 2026 Irish Tax Calculation Engine Results</p>
+            <div className="flex items-center gap-3 mt-1">
+              <p className="text-on-surface-variant text-sm font-medium">Full 2026 Irish Tax Calculation Engine Results</p>
+              <div className="h-4 w-px bg-outline-variant/30 hidden sm:block"></div>
+              <div className="flex items-center gap-1 text-[10px] text-on-surface-variant/60 font-medium italic">
+                <span className="material-symbols-outlined text-[12px]">info</span>
+                <span>Links to Revenue.ie</span>
+              </div>
+            </div>
           </div>
           <button onClick={onClose} className="w-12 h-12 rounded-full hover:bg-surface-container-high flex items-center justify-center transition-colors active:scale-90">
             <span className="material-symbols-outlined text-2xl">close</span>

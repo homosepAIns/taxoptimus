@@ -56,14 +56,40 @@ function fmt(n: number) {
   return n.toLocaleString('en-IE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
 
-// Render **bold** markdown inline
-function Bold({ text }: { text: string }) {
+// Render **bold** markdown inline + InfoLink injection
+function RichText({ text }: { text: string }) {
   const parts = text.split(/\*\*(.*?)\*\*/g)
+  
+  const KEYWORD_LINKS: Record<string, string> = {
+    'Income Tax:': 'INCOME_TAX_RATES_BANDS',
+    'PRSI:': 'PRSI_RATES_DSP',
+    'USC:': 'USC_STANDARD_RATES_THRESHOLDS',
+    'Gross income:': 'INCOME_TAX_RATES_BANDS',
+  }
+
   return (
     <>
-      {parts.map((p, i) =>
-        i % 2 === 1 ? <strong key={i} className="text-primary">{p}</strong> : <span key={i}>{p}</span>
-      )}
+      {parts.map((p, i) => {
+        if (i % 2 === 1) return <strong key={i} className="text-primary">{p}</strong>
+        
+        // Inject info links for keywords in normal text
+        const textParts = p.split(/(Income Tax:|PRSI:|USC:|Gross income:)/g)
+        return (
+          <span key={i}>
+            {textParts.map((tp, j) => {
+              if (KEYWORD_LINKS[tp]) {
+                return (
+                  <span key={j} className="inline-flex items-center gap-1">
+                    {tp}
+                    <InfoLink taxKey={KEYWORD_LINKS[tp]} />
+                  </span>
+                )
+              }
+              return <span key={j}>{tp}</span>
+            })}
+          </span>
+        )
+      })}
     </>
   )
 }
@@ -303,10 +329,18 @@ export default function LandingChat() {
                     ? 'bg-surface-container text-on-surface rounded-tl-sm border border-outline-variant/10'
                     : 'bg-emerald-gradient text-white rounded-tr-sm font-medium shadow-md'
                 }`}>
-                  <Bold text={msg.text} />
+                  <RichText text={msg.text} />
                 </div>
               </div>
             ))}
+
+            {/* Legend for InfoLink */}
+            {!typing && messages.some(m => m.text.includes(':')) && (
+              <div className="pl-11 flex items-center gap-1.5 text-[10px] text-on-surface-variant/60 font-medium italic">
+                <span className="material-symbols-outlined text-[12px]">info</span>
+                <span>Click the info icon to view official Revenue.ie documentation</span>
+              </div>
+            )}
 
             {/* Typing dots */}
             {typing && (

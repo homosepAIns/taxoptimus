@@ -10,13 +10,11 @@ class UserProfile(BaseModel):
     medical_card: bool = False
     second_income: float = 0.0
     rent_a_room_income: float = 0.0
-    micro_generation_income: float = 0.0
     annual_rent_paid: float = 0.0
     qualifying_health_expenses: float = 0.0
     bik: float = 0.0
     employer_health_premium: float = 0.0
     additional_tax_credits: float = 0.0
-    is_blind: bool = False
     has_incapacitated_child: bool = False
     claims_home_carer: bool = False
     claims_single_child_carer: bool = False
@@ -27,7 +25,6 @@ class UserProfile(BaseModel):
     annual_wfh_utility_costs: float = 0.0
     qualifying_tuition_fees: float = 0.0
     flat_rate_expense: float = 0.0
-    nursing_home_fees: float = 0.0
     employee_health_insurance: float = 0.0
     eiis_max_willing: float = 0.0
     deeds_max_willing: float = 0.0

@@ -593,7 +593,6 @@ export default function DashboardPage() {
                   <h4 className="font-bold text-sm text-primary uppercase tracking-widest border-b border-outline-variant/20 pb-2">3. Life Circumstances (Automatic Credits)</h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {[
-                      { key: 'is_blind', label: 'Blind Credit', icon: 'visibility_off', link: 'BLIND_PERSONS_CREDIT' },
                       { key: 'has_incapacitated_child', label: 'Incap. Child', icon: 'child_care', link: 'INCAPACITATED_CHILD_CREDIT' },
                       { key: 'claims_home_carer', label: 'Home Carer', icon: 'home_health', link: 'HOME_CARER_CREDIT' },
                       { key: 'claims_single_child_carer', label: 'Single Carer', icon: 'person_raised_hand', link: 'SINGLE_PERSON_CHILD_CARER_CREDIT' },
@@ -625,11 +624,6 @@ export default function DashboardPage() {
                         <label className="text-xs font-medium text-on-surface-variant">Qualifying Health Expenses (€)</label>
                         <input type="number" value={formData.qualifying_health_expenses || ''} onChange={e => setFormData(d => ({ ...d, qualifying_health_expenses: Number(e.target.value) }))}
                           className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2.5 px-4 text-sm" placeholder="Doctors, Meds, etc." />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-on-surface-variant">Nursing Home Fees (€)</label>
-                        <input type="number" value={formData.nursing_home_fees || ''} onChange={e => setFormData(d => ({ ...d, nursing_home_fees: Number(e.target.value) }))}
-                          className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2.5 px-4 text-sm" placeholder="0" />
                       </div>
                     </div>
                     <div className="space-y-4">
@@ -730,6 +724,15 @@ export default function DashboardPage() {
                         {l.label}
                       </span>
                     ))}
+                  </div>
+
+                  {/* Key numbers grid header */}
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Tax Breakdown</h4>
+                    <div className="flex items-center gap-1 text-[10px] text-on-surface-variant/60 font-medium italic">
+                      <span className="material-symbols-outlined text-[12px]">info</span>
+                      <span>Links to Revenue.ie</span>
+                    </div>
                   </div>
 
                   {/* Key numbers grid */}
