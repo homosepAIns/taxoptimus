@@ -1,8 +1,27 @@
 'use client'
+import InfoLink from '@/components/InfoLink'
 
 interface Props {
   data: any
   onClose: () => void
+}
+
+const DEDUCTION_LINKS: Record<string, string> = {
+  'Gross Income Tax': 'INCOME_TAX_RATES_BANDS',
+  'Net Income Tax (PAYE)': 'INCOME_TAX_RATES_BANDS',
+  'USC': 'USC_STANDARD_RATES_THRESHOLDS',
+  'PRSI': 'PRSI_RATES_DSP',
+  'Rent Tax Credit (20%)': 'RENT_TAX_CREDIT',
+  'Health Expenses Relief (20%)': 'HEALTH_EXPENSES_RELIEF',
+  'Pension Deduction': 'PENSION_RELIEF',
+  'EIIS Deduction': 'EIIS',
+  'Deeds of Covenant Deduction': 'DEEDS_OF_COVENANT',
+  'Cycle to Work Deduction': 'CYCLE_TO_WORK',
+  'Travel Pass Deduction': 'TRAVEL_PASS_TAXSAVER',
+  'Income Protection Relief (20%)': 'INCOME_PROTECTION_RELIEF',
+  'Remote Working Relief (20%)': 'REMOTE_WORKING_RELIEF',
+  'Tuition Fees Relief (20%)': 'TUITION_FEES_RELIEF',
+  'Flat Rate Expense Deduction': 'FLAT_RATE_EXPENSES',
 }
 
 function fmt(n: any) {
@@ -67,7 +86,10 @@ export default function TaxBreakdownModal({ data, onClose }: Props) {
                 <tbody className="divide-y divide-outline-variant/10">
                   {Object.entries(deductions).map(([key, val]) => (
                     <tr key={key} className="hover:bg-surface-container-low/50 transition-colors">
-                      <td className="py-3 px-5 text-on-surface-variant font-medium">{key}</td>
+                      <td className="py-3 px-5 text-on-surface-variant font-medium flex items-center gap-1">
+                        {key}
+                        {DEDUCTION_LINKS[key] && <InfoLink taxKey={DEDUCTION_LINKS[key]} />}
+                      </td>
                       <td className={`py-3 px-5 text-right font-bold ${Number(val) > 0 ? 'text-on-surface' : 'text-on-surface-variant/40'}`}>
                         {Number(val) > 0 ? `€${fmt(val)}` : '—'}
                       </td>

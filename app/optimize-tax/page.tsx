@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase, type TaxProfile } from '@/lib/supabase'
 import BottomNavBar from '@/components/BottomNavBar'
 import TopAppBar from '@/components/TopAppBar'
+import InfoLink from '@/components/InfoLink'
 
 type SetupStep = 'core_income' | 'employment' | 'extra_income' | 'credits' | 'expenses' | 'future_invest' | 'ready'
 
@@ -195,7 +196,7 @@ export default function InvestPage() {
               <span className="material-symbols-outlined text-3xl">query_stats</span>
             </div>
             <h1 className="text-3xl font-black">Strategy Onboarding</h1>
-            <p className="text-on-surface-variant mt-2">Let's collect the missing pieces to build your tax strategy.</p>
+            <p className="text-on-surface-variant mt-2">Let&apos;s collect the missing pieces to build your tax strategy.</p>
           </div>
 
           <div className="bg-surface-container-low rounded-[2rem] p-8 border border-outline-variant/10 shadow-sm">
@@ -263,12 +264,18 @@ export default function InvestPage() {
                       className="w-full bg-surface-container-lowest border-none rounded-2xl py-4 px-5 mt-1 focus:ring-2 focus:ring-primary/20" />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-on-surface-variant uppercase ml-1">Rent-a-Room Income (€)</label>
+                    <label className="text-xs font-bold text-on-surface-variant uppercase ml-1 flex items-center">
+                      Rent-a-Room Income (€)
+                      <InfoLink taxKey="RENT_A_ROOM_RELIEF" />
+                    </label>
                     <input type="number" value={formData.rent_a_room_income} onChange={e => setFormData({...formData, rent_a_room_income: Number(e.target.value)})}
                       className="w-full bg-surface-container-lowest border-none rounded-2xl py-4 px-5 mt-1 focus:ring-2 focus:ring-primary/20" />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-on-surface-variant uppercase ml-1">Micro-gen Income (€)</label>
+                    <label className="text-xs font-bold text-on-surface-variant uppercase ml-1 flex items-center">
+                      Micro-gen Income (€)
+                      <InfoLink taxKey="MICRO_GENERATION_EXEMPTION" />
+                    </label>
                     <input type="number" value={formData.micro_generation_income} onChange={e => setFormData({...formData, micro_generation_income: Number(e.target.value)})}
                       className="w-full bg-surface-container-lowest border-none rounded-2xl py-4 px-5 mt-1 focus:ring-2 focus:ring-primary/20" />
                   </div>
@@ -288,16 +295,19 @@ export default function InvestPage() {
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { key: 'medical_card', label: 'Medical Card', icon: 'badge' },
-                    { key: 'claims_home_carer', label: 'Home Carer', icon: 'home_health' },
-                    { key: 'is_blind', label: 'Reg. Blind', icon: 'visibility_off' },
-                    { key: 'has_incapacitated_child', label: 'Incap. Child', icon: 'child_care' },
-                    { key: 'claims_single_child_carer', label: 'Single Carer', icon: 'person_raised_hand' },
-                    { key: 'claims_dependent_relative', label: 'Dep. Relative', icon: 'family_restroom' }
+                    { key: 'medical_card', label: 'Medical Card', icon: 'badge', link: 'USC_REDUCED_RATES_MEDICAL_CARD' },
+                    { key: 'claims_home_carer', label: 'Home Carer', icon: 'home_health', link: 'HOME_CARER_CREDIT' },
+                    { key: 'is_blind', label: 'Reg. Blind', icon: 'visibility_off', link: 'BLIND_PERSONS_CREDIT' },
+                    { key: 'has_incapacitated_child', label: 'Incap. Child', icon: 'child_care', link: 'INCAPACITATED_CHILD_CREDIT' },
+                    { key: 'claims_single_child_carer', label: 'Single Carer', icon: 'person_raised_hand', link: 'SINGLE_PERSON_CHILD_CARER_CREDIT' },
+                    { key: 'claims_dependent_relative', label: 'Dep. Relative', icon: 'family_restroom', link: 'DEPENDENT_RELATIVE_CREDIT' }
                   ].map(item => (
                     <button key={item.key} type="button" onClick={() => setFormData({...formData, [item.key]: !formData[item.key]})}
                       className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all ${formData[item.key] ? 'bg-primary/10 border-primary text-primary' : 'border-outline-variant/20 bg-surface-container-lowest'}`}
                     >
+                      <div className="w-full flex justify-end -mb-4 relative z-10">
+                        <InfoLink taxKey={item.link} />
+                      </div>
                       <span className="material-symbols-outlined text-2xl">{item.icon}</span>
                       <span className="font-bold text-xs text-center">{item.label}</span>
                     </button>
@@ -318,18 +328,21 @@ export default function InvestPage() {
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[45vh] overflow-y-auto pr-2 pb-4">
                   {[
-                    { key: 'annual_rent_paid', label: 'Annual Rent (€)' },
-                    { key: 'qualifying_health_expenses', label: 'Health Expenses (€)' },
-                    { key: 'nursing_home_fees', label: 'Nursing Home Fees (€)' },
-                    { key: 'employee_health_insurance', label: 'Health Insurance (€)' },
-                    { key: 'qualifying_tuition_fees', label: 'Tuition Fees (€)' },
-                    { key: 'flat_rate_expense', label: 'Flat Rate Expenses (€)' },
-                    { key: 'bik', label: 'Benefits in Kind (€)' },
-                    { key: 'employer_health_premium', label: 'Employer Health Prem. (€)' },
-                    { key: 'additional_tax_credits', label: 'Misc Tax Credits (€)' },
+                    { key: 'annual_rent_paid', label: 'Annual Rent (€)', link: 'RENT_TAX_CREDIT' },
+                    { key: 'qualifying_health_expenses', label: 'Health Expenses (€)', link: 'HEALTH_EXPENSES_RELIEF' },
+                    { key: 'nursing_home_fees', label: 'Nursing Home Fees (€)', link: 'NURSING_HOME_FEES_RELIEF' },
+                    { key: 'employee_health_insurance', label: 'Health Insurance (€)', link: 'HEALTH_INSURANCE_PREMIUMS_RELIEF' },
+                    { key: 'qualifying_tuition_fees', label: 'Tuition Fees (€)', link: 'TUITION_FEES_RELIEF' },
+                    { key: 'flat_rate_expense', label: 'Flat Rate Expenses (€)', link: 'FLAT_RATE_EXPENSES' },
+                    { key: 'bik', label: 'Benefits in Kind (€)', link: 'BIK_OVERVIEW' },
+                    { key: 'employer_health_premium', label: 'Employer Health Prem. (€)', link: 'HEALTH_INSURANCE_PREMIUMS_RELIEF' },
+                    { key: 'additional_tax_credits', label: 'Misc Tax Credits (€)', link: 'HOW_TAX_CREDITS_WORK' },
                   ].map(field => (
                     <div key={field.key}>
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase ml-1 block truncate">{field.label}</label>
+                      <label className="text-[10px] font-bold text-on-surface-variant uppercase ml-1 flex items-center truncate">
+                        {field.label}
+                        <InfoLink taxKey={field.link} />
+                      </label>
                       <input type="number" value={formData[field.key as keyof typeof formData] as number} onChange={e => setFormData({...formData, [field.key]: Number(e.target.value)})}
                         className="w-full bg-surface-container-lowest border border-outline-variant/10 rounded-2xl py-3 px-4 mt-1 focus:ring-2 focus:ring-primary/20 text-sm" />
                     </div>
@@ -387,7 +400,7 @@ export default function InvestPage() {
         <header className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
           <div>
             <h1 className="text-4xl font-extrabold tracking-tight mb-2">Maximize My Savings</h1>
-            <p className="text-on-surface-variant text-lg">Decide your take-home pay, and we'll optimize the rest.</p>
+            <p className="text-on-surface-variant text-lg">Decide your take-home pay, and we&apos;ll optimize the rest.</p>
           </div>
           <button type="button"
             onClick={() => setSetupStep('core_income')}
@@ -475,12 +488,12 @@ export default function InvestPage() {
                 <div className="flex-1 flex flex-col">
                   <div className="space-y-8 flex-1">
                     {[
-                      { id: 'pension', label: 'Pension (PRSA)', amount: optimalInvestments.pension_contribution, color: 'bg-primary', icon: 'savings', desc: 'Saves tax at your highest rate (40%).', maxVal: bounds?.max_pension || 1 },
-                      { id: 'eiis', label: 'EIIS Investment', amount: optimalInvestments.eiis_investment, color: 'bg-purple-500', icon: 'trending_up', desc: 'Direct deduction from taxable income up to €500k.', maxVal: bounds?.max_eiis || 1 },
-                      { id: 'deeds', label: 'Deeds of Covenant', amount: optimalInvestments.deeds_of_covenant, color: 'bg-rose-500', icon: 'diversity_1', desc: 'Support dependents legally, pre-tax.', maxVal: bounds?.max_deeds || 1 },
-                      { id: 'cycle', label: 'Cycle to Work', amount: optimalInvestments.cycle_to_work, color: 'bg-emerald-500', icon: 'directions_bike', desc: 'Pre-tax bike purchase.', maxVal: bounds?.max_cycle || 1 },
-                      { id: 'travel', label: 'Travel Pass', amount: optimalInvestments.travel_pass, color: 'bg-blue-500', icon: 'train', desc: 'Tax-free public transport.', maxVal: bounds?.max_travel || 1 },
-                      { id: 'ip', label: 'Income Protection', amount: optimalInvestments.income_protection_premium, color: 'bg-amber-500', icon: 'security', desc: '20% tax credit on premiums.', maxVal: bounds?.max_ip || 1 },
+                      { id: 'pension', label: 'Pension (PRSA)', amount: optimalInvestments.pension_contribution, color: 'bg-primary', icon: 'savings', desc: 'Saves tax at your highest rate (40%).', maxVal: bounds?.max_pension || 1, link: 'PENSION_RELIEF' },
+                      { id: 'eiis', label: 'EIIS Investment', amount: optimalInvestments.eiis_investment, color: 'bg-purple-500', icon: 'trending_up', desc: 'Direct deduction from taxable income up to €500k.', maxVal: bounds?.max_eiis || 1, link: 'EIIS' },
+                      { id: 'deeds', label: 'Deeds of Covenant', amount: optimalInvestments.deeds_of_covenant, color: 'bg-rose-500', icon: 'diversity_1', desc: 'Support dependents legally, pre-tax.', maxVal: bounds?.max_deeds || 1, link: 'DEEDS_OF_COVENANT' },
+                      { id: 'cycle', label: 'Cycle to Work', amount: optimalInvestments.cycle_to_work, color: 'bg-emerald-500', icon: 'directions_bike', desc: 'Pre-tax bike purchase.', maxVal: bounds?.max_cycle || 1, link: 'CYCLE_TO_WORK' },
+                      { id: 'travel', label: 'Travel Pass', amount: optimalInvestments.travel_pass, color: 'bg-blue-500', icon: 'train', desc: 'Tax-free public transport.', maxVal: bounds?.max_travel || 1, link: 'TRAVEL_PASS_TAXSAVER' },
+                      { id: 'ip', label: 'Income Protection', amount: optimalInvestments.income_protection_premium, color: 'bg-amber-500', icon: 'security', desc: '20% tax credit on premiums.', maxVal: bounds?.max_ip || 1, link: 'INCOME_PROTECTION_RELIEF' },
                     ].filter(item => item.amount > 0).map((item) => (
                       <div key={item.id} className="relative group">
                         <div className="flex justify-between items-end mb-3">
@@ -489,7 +502,10 @@ export default function InvestPage() {
                               <span className="material-symbols-outlined">{item.icon}</span>
                             </div>
                             <div>
-                              <p className="font-bold text-lg leading-none">{item.label}</p>
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-bold text-lg leading-none">{item.label}</p>
+                                <InfoLink taxKey={item.link} />
+                              </div>
                               <p className="text-xs text-on-surface-variant mt-1">{item.desc}</p>
                             </div>
                           </div>

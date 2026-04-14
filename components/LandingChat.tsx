@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import TaxBreakdownModal from '@/components/TaxBreakdownModal'
+import InfoLink from '@/components/InfoLink'
 
 // ── Save helper: DB if logged in, localStorage if not ─────────────────────────
 interface CalcPayload {
@@ -284,7 +285,7 @@ export default function LandingChat() {
 
         {/* Chat window */}
         <div className="bg-surface-container-lowest rounded-3xl border border-outline-variant/10 shadow-[0px_12px_40px_rgba(13,28,50,0.08)] overflow-hidden flex flex-col">
-          <div ref={chatContainerRef} className="flex-1 p-6 space-y-5 overflow-y-auto max-h-[560px]">
+          <div ref={chatContainerRef} className="flex-1 p-4 md:p-6 space-y-5 overflow-y-auto max-h-[70dvh] md:max-h-[560px]">
 
             {/* Messages */}
             {messages.map((msg, i) => (
@@ -328,12 +329,13 @@ export default function LandingChat() {
                   <button
                     key={val}
                     onClick={() => handleStatus(val)}
-                    className="flex items-center gap-3 px-4 py-3 bg-surface-container-low border border-outline-variant/20 rounded-2xl text-sm font-medium text-on-surface hover:bg-primary-container/10 hover:border-primary/30 transition-all text-left group"
+                    className="flex items-center gap-3 px-4 py-3 bg-surface-container-low border border-outline-variant/20 rounded-2xl text-sm font-medium text-on-surface hover:bg-primary-container/10 hover:border-primary/30 transition-all text-left group relative"
                   >
                     <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors text-xl">
                       {val === 'single' ? 'person' : val === 'one-parent' ? 'family_restroom' : 'people'}
                     </span>
-                    {label}
+                    <span className="flex-1">{label}</span>
+                    <InfoLink taxKey={val === 'one-parent' ? 'SINGLE_PERSON_CHILD_CARER_CREDIT' : val === 'single' ? 'PERSONAL_CREDIT' : 'MARRIED_CREDITS_AND_BANDS'} />
                   </button>
                 ))}
               </div>
@@ -348,6 +350,7 @@ export default function LandingChat() {
                 >
                   <span className="material-symbols-outlined text-lg text-primary" style={{ fontVariationSettings: '"FILL" 1' }}>check_circle</span>
                   Yes
+                  <InfoLink taxKey="USC_REDUCED_RATES_MEDICAL_CARD" />
                 </button>
                 <button
                   onClick={() => handleMedical(false)}

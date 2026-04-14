@@ -1,8 +1,8 @@
-import Link from 'next/link'
 import TopAppBar from '@/components/TopAppBar'
 import LandingChat from '@/components/LandingChat'
 import ScrollToChat from '@/components/ScrollToChat'
 import RedirectIfLoggedIn from '@/components/RedirectIfLoggedIn'
+import BottomNavBar from '@/components/BottomNavBar'
 
 export default function LandingPage() {
   return (
@@ -19,9 +19,9 @@ export default function LandingPage() {
                 <span className="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
                 Maximize your take home income!
               </div>
-              <h1 className="font-headline font-extrabold text-5xl md:text-7xl text-on-surface leading-[1.1] tracking-tight">
+              <h1 className="font-headline font-extrabold text-4xl xs:text-5xl md:text-7xl text-on-surface leading-[1.1] tracking-tight">
                 Handle Your Finances,<br />
-                <span className="text-primary italic">In Just 4 Easy Steps ...</span>
+                <span className="text-primary italic text-3xl xs:text-4xl md:text-7xl">In Just 4 Easy Steps ...</span>
               </h1>
               <div className="text-lg text-on-surface-variant max-w-xl leading-relaxed space-y-1">
                 <div>1. Input your income and tax details</div>
@@ -122,23 +122,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      {/* BottomNavBar — mobile only */}
-      <nav className="md:hidden fixed bottom-0 w-full flex justify-around items-center px-4 pb-6 pt-2 bg-[#F9F9FF]/80 dark:bg-[#0D1C32]/80 backdrop-blur-md rounded-t-[1.5rem] z-50 border-t border-[#BDCABC]/20 shadow-[0px_-12px_32px_rgba(13,28,50,0.06)]">
-        {[
-          { href: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
-          { href: '/upload', icon: 'upload_file', label: 'Upload', action: true },
-          { href: '/optimize-tax', icon: 'trending_up', label: 'Optimize' },
-        ].map((item) => (
-          <Link
-            key={`${item.href}-${item.label}`}
-            href={item.href}
-            className={`flex flex-col items-center justify-center p-2 font-['Inter'] text-[11px] font-medium rounded-[1rem] active:scale-90 transition-transform duration-200 ${item.action ? 'bg-[#50C878] text-[#0D1C32]' : 'text-[#3E4A3F] dark:text-[#BDCABC] hover:bg-[#DFE8FF] dark:hover:bg-[#1A2E4B]'}`}
-          >
-            <span className="material-symbols-outlined">{item.icon}</span>
-            {item.label}
-          </Link>
-        ))}
-      </nav>
+      <BottomNavBar />
     </>
   )
 }

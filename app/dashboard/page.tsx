@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import BottomNavBar from '@/components/BottomNavBar'
 import TopAppBar from '@/components/TopAppBar'
+import InfoLink from '@/components/InfoLink'
 import { supabase, type IncomeProfile, type Transaction, type SavingsGoal, type TaxProfile } from '@/lib/supabase'
 
 function fmt(n: number | null | undefined) {
@@ -316,7 +317,7 @@ export default function DashboardPage() {
     }
 
     if (pct < 5)  return { text: "Every euro counts — start small and be consistent.", icon: "emoji_objects", color: "text-primary" }
-    return { text: `€${fmt(remaining)} to go — you've got this!`, icon: "trending_up", color: "text-primary" }
+    return { text: `€${fmt(remaining)} to go — you&apos;ve got this!`, icon: "trending_up", color: "text-primary" }
   }
 
   async function handleAddGoal(e: React.FormEvent) {
@@ -388,30 +389,29 @@ export default function DashboardPage() {
 
       <main className="mt-20 px-6 max-w-5xl mx-auto">
         {/* ── Greeting & hero number ── */}
-        <section className="mt-8 mb-10">
+        <section className="mt-4 md:mt-8 mb-6 md:mb-10">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
             <div>
-              <p className="text-on-surface-variant font-medium mb-1">{greeting}, {userName} 👋</p>
+              <p className="text-on-surface-variant font-medium mb-1 text-sm md:text-base">{greeting}, {userName} 👋</p>
               {profile ? (
                 <>
-                  <h1 className="text-[3.5rem] font-extrabold tracking-tight text-on-surface leading-none">
+                  <h1 className="text-4xl md:text-[3.5rem] font-extrabold tracking-tight text-on-surface leading-tight md:leading-none">
                     €{fmt(profile.net_monthly)}
-                    <span className="text-xl font-medium text-on-surface-variant ml-3">/month take-home</span>
+                    <span className="text-lg md:text-xl font-medium text-on-surface-variant ml-2 md:ml-3">/month net</span>
                   </h1>
-                  <p className="text-on-surface-variant mt-2 text-sm">
+                  <p className="text-on-surface-variant mt-2 text-xs md:text-sm">
                     {TAX_STATUS_LABELS[profile.tax_status]} · Gross €{fmt(gross)}/yr
-                    · Profile from {new Date(profile.created_at).toLocaleDateString('en-IE', { month: 'short', year: 'numeric' })}
                   </p>
                 </>
               ) : (
                 <>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-on-surface">No tax profile yet</h1>
-                  <p className="text-on-surface-variant mt-1 text-sm">Complete the free calculator to see your take-home pay.</p>
+                  <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-on-surface">No tax profile yet</h1>
+                  <p className="text-on-surface-variant mt-1 text-xs md:text-sm">Complete the free calculator to see your take-home pay.</p>
                 </>
               )}
             </div>
-            <Link href="/upload">
-              <button className="emerald-gradient text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 active:scale-95 transition-transform">
+            <Link href="/upload" className="w-full md:w-auto">
+              <button className="emerald-gradient text-white w-full md:w-auto px-6 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-primary/10">
                 <span className="material-symbols-outlined">upload_file</span>
                 Upload Statement
               </button>
@@ -593,18 +593,19 @@ export default function DashboardPage() {
                   <h4 className="font-bold text-sm text-primary uppercase tracking-widest border-b border-outline-variant/20 pb-2">3. Life Circumstances (Automatic Credits)</h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {[
-                      { key: 'is_blind', label: 'Blind Credit', icon: 'visibility_off' },
-                      { key: 'has_incapacitated_child', label: 'Incap. Child', icon: 'child_care' },
-                      { key: 'claims_home_carer', label: 'Home Carer', icon: 'home_health' },
-                      { key: 'claims_single_child_carer', label: 'Single Carer', icon: 'person_raised_hand' },
-                      { key: 'claims_dependent_relative', label: 'Dep. Relative', icon: 'family_restroom' },
-                      { key: 'medical_card', label: 'Medical Card', icon: 'medical_card' },
+                      { key: 'is_blind', label: 'Blind Credit', icon: 'visibility_off', link: 'BLIND_PERSONS_CREDIT' },
+                      { key: 'has_incapacitated_child', label: 'Incap. Child', icon: 'child_care', link: 'INCAPACITATED_CHILD_CREDIT' },
+                      { key: 'claims_home_carer', label: 'Home Carer', icon: 'home_health', link: 'HOME_CARER_CREDIT' },
+                      { key: 'claims_single_child_carer', label: 'Single Carer', icon: 'person_raised_hand', link: 'SINGLE_PERSON_CHILD_CARER_CREDIT' },
+                      { key: 'claims_dependent_relative', label: 'Dep. Relative', icon: 'family_restroom', link: 'DEPENDENT_RELATIVE_CREDIT' },
+                      { key: 'medical_card', label: 'Medical Card', icon: 'medical_card', link: 'USC_REDUCED_RATES_MEDICAL_CARD' },
                     ].map(item => (
                       <button key={item.key} type="button" onClick={() => setFormData(d => ({ ...d, [item.key]: !d[item.key as keyof TaxFormData] }))}
                         className={`flex items-center gap-2 p-3 rounded-xl text-xs font-bold transition-all border ${formData[item.key as keyof TaxFormData] ? 'bg-primary/10 border-primary text-primary' : 'bg-surface-container-lowest border-outline-variant/20 text-on-surface-variant hover:border-primary/50'}`}
                       >
                         <span className="material-symbols-outlined text-lg">{item.icon}</span>
-                        {item.label}
+                        <span className="flex-1 truncate text-left">{item.label}</span>
+                        <InfoLink taxKey={item.link} className={formData[item.key as keyof TaxFormData] ? 'text-primary/60' : ''} />
                       </button>
                     ))}
                   </div>
@@ -735,14 +736,17 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-6">
                     {[
                       { label: 'Gross Income',   value: `€${fmt(gross)}/yr`,        cls: '' },
-                      { label: 'Income Tax',     value: `€${fmt(netPaye)}/yr`,       cls: 'text-error' },
-                      { label: 'USC',            value: `€${fmt(usc)}/yr`,           cls: 'text-orange-500' },
-                      { label: 'PRSI',           value: `€${fmt(prsi)}/yr`,          cls: 'text-on-surface-variant' },
+                      { label: 'Income Tax',     value: `€${fmt(netPaye)}/yr`,       cls: 'text-error', link: 'INCOME_TAX_RATES_BANDS' },
+                      { label: 'USC',            value: `€${fmt(usc)}/yr`,           cls: 'text-orange-500', link: 'USC_STANDARD_RATES_THRESHOLDS' },
+                      { label: 'PRSI',           value: `€${fmt(prsi)}/yr`,          cls: 'text-on-surface-variant', link: 'PRSI_RATES_DSP' },
                       { label: 'Total Tax',      value: `€${fmt(totalTax)}/yr`,      cls: 'text-error font-extrabold' },
                       { label: 'Take-Home',      value: `€${fmt(takeHome / 12)}/mo`, cls: 'text-primary font-extrabold' },
                     ].map(item => (
                       <div key={item.label}>
-                        <p className="text-xs text-on-surface-variant uppercase tracking-wide mb-0.5">{item.label}</p>
+                        <p className="text-xs text-on-surface-variant uppercase tracking-wide mb-0.5 flex items-center">
+                          {item.label}
+                          {item.link && <InfoLink taxKey={item.link} />}
+                        </p>
                         <p className={`font-bold text-base ${item.cls}`}>{item.value}</p>
                       </div>
                     ))}
@@ -757,6 +761,7 @@ export default function DashboardPage() {
                           <span className="text-on-surface-variant flex items-center gap-1.5">
                             <span className="material-symbols-outlined text-primary text-base">check_circle</span>
                             Rent Tax Credit
+                            <InfoLink taxKey="RENT_TAX_CREDIT" />
                           </span>
                           <span className="font-bold text-primary">−€{fmt(rentCredit)}</span>
                         </div>
@@ -766,6 +771,7 @@ export default function DashboardPage() {
                           <span className="text-on-surface-variant flex items-center gap-1.5">
                             <span className="material-symbols-outlined text-primary text-base">check_circle</span>
                             Health Relief (20%)
+                            <InfoLink taxKey="HEALTH_EXPENSES_RELIEF" />
                           </span>
                           <span className="font-bold text-primary">−€{fmt(healthRelief)}</span>
                         </div>
@@ -787,7 +793,7 @@ export default function DashboardPage() {
                       <div>
                         <h4 className="text-3xl font-black text-on-surface leading-tight">Pay Less Tax in 2026</h4>
                         <p className="text-on-surface-variant text-lg mt-2 max-w-md">
-                          We've analyzed your €{fmt(gross)} income. You could potentially reclaim thousands by optimizing your pension and benefits.
+                          We&apos;ve analyzed your €{fmt(gross)} income. You could potentially reclaim thousands by optimizing your pension and benefits.
                         </p>
                       </div>
 

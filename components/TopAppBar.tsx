@@ -42,16 +42,16 @@ export default function TopAppBar() {
   const initial = displayName[0]?.toUpperCase() ?? 'U'
 
   return (
-    <header className="fixed top-0 w-full z-50 bg-[#F9F9FF]/95 dark:bg-[#0D1C32]/95 backdrop-blur-md border-b border-outline-variant/10 flex justify-between items-center px-6 py-4">
+    <header className="fixed top-0 w-full z-50 bg-[#F9F9FF]/95 dark:bg-[#0D1C32]/95 backdrop-blur-md border-b border-outline-variant/10 flex justify-between items-center px-4 md:px-6 py-4">
       {/* Brand */}
       <Link href={user ? '/dashboard' : '/'} className="flex items-center gap-2 hover:opacity-80 transition-opacity active:scale-95">
         <span
-          className="material-symbols-outlined text-[#006D36] dark:text-[#50C878] text-2xl"
+          className="material-symbols-outlined text-[#006D36] dark:text-[#50C878] text-2xl md:text-2xl"
           style={{ fontVariationSettings: '"FILL" 1' }}
         >
           account_balance
         </span>
-        <span className="text-[#006D36] dark:text-[#50C878] font-headline font-extrabold tracking-tight text-xl">
+        <span className="text-[#006D36] dark:text-[#50C878] font-headline font-extrabold tracking-tight text-lg md:text-xl hidden xs:block">
           TaxOptimus
         </span>
       </Link>
