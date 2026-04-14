@@ -2,6 +2,7 @@
 
 Welcome to **TaxOptimus**! This project is designed to revolutionize the way individuals and businesses approach tax optimization. As we navigate the complexities of tax regulations, we face several pain points that can lead to stress and confusion. TaxOptimus aims to address these challenges by providing effective and efficient solutions.
 
+
 ## 🚨 Pain Points Addressed
 
 ### 1. **Complex Tax Regulations**  
