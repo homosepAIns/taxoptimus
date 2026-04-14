@@ -40,7 +40,6 @@ export default function TaxBreakdownModal({ data, onClose }: Props) {
     <div className="fixed inset-0 z-[70] bg-on-surface/40 backdrop-blur-md flex items-center justify-center p-4">
       <div className="w-full max-w-2xl bg-surface rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-outline-variant/20">
         
-        {/* Header */}
         <div className="p-8 bg-surface-container-lowest border-b border-outline-variant/10 flex justify-between items-center">
           <div>
             <h2 className="font-headline font-extrabold text-2xl text-on-surface leading-tight">Detailed Tax Breakdown</h2>
@@ -58,10 +57,8 @@ export default function TaxBreakdownModal({ data, onClose }: Props) {
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto p-8 space-y-10">
           
-          {/* Summary Section */}
           <section>
             <h3 className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-primary rounded-full"></span>
@@ -82,7 +79,6 @@ export default function TaxBreakdownModal({ data, onClose }: Props) {
             </div>
           </section>
 
-          {/* Tax Deductions Section */}
           <section>
             <h3 className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-primary rounded-full"></span>
@@ -107,7 +103,6 @@ export default function TaxBreakdownModal({ data, onClose }: Props) {
             </div>
           </section>
 
-          {/* Core Financials Section */}
           <section>
             <h3 className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-primary rounded-full"></span>
@@ -129,7 +124,6 @@ export default function TaxBreakdownModal({ data, onClose }: Props) {
 
         </div>
 
-        {/* Footer */}
         <div className="p-6 bg-surface-container-lowest border-t border-outline-variant/10 flex justify-center">
           <button 
             onClick={onClose}

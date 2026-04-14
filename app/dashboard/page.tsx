@@ -274,9 +274,8 @@ export default function DashboardPage() {
       const payload = { user_id: userId, ...formData, calc_result: newCalcResult }
       const { data: saved } = await supabase
         .from('tax_profiles')
-        .upsert(payload, { onConflict: 'user_id' })
+        .upsert(payload)
         .select().single()
-
       if (saved) setTaxProfile(saved as TaxProfile)
       setCalcResult(newCalcResult)
           } catch (err) {

@@ -146,7 +146,7 @@ async def optimize_tax(request: OptimizationRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Financial Document Analysis ──────────────────────────────────────────────
+────────────────
 
 # Import analysis functions from the app package
 from .analyzer import (

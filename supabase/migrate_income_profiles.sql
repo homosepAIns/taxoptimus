@@ -11,7 +11,7 @@ drop table if exists public.income_profiles;
 
 create table public.income_profiles (
   id                      uuid default gen_random_uuid() primary key,
-  user_id                 uuid references public.profiles(id) on delete cascade not null,
+  user_id                 uuid references public.profiles(id) on delete cascade not null unique,
   -- Inputs collected in the landing-page chat
   gross_income            numeric(10,2) not null,
   tax_status              text not null check (tax_status in ('single','married-one','married-two','one-parent')),

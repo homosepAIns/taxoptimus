@@ -43,7 +43,6 @@ export default function TopAppBar() {
 
   return (
     <header className="fixed top-0 w-full z-50 bg-[#F9F9FF]/95 dark:bg-[#0D1C32]/95 backdrop-blur-md border-b border-outline-variant/10 flex justify-between items-center px-4 md:px-6 py-4">
-      {/* Brand */}
       <Link href={user ? '/dashboard' : '/'} className="flex items-center gap-2 hover:opacity-80 transition-opacity active:scale-95">
         <span
           className="material-symbols-outlined text-[#006D36] dark:text-[#50C878] text-2xl md:text-2xl"
@@ -56,15 +55,12 @@ export default function TopAppBar() {
         </span>
       </Link>
 
-      {/* Right side */}
       {user ? (
         <div className="flex items-center gap-3">
-          {/* Bell */}
           <button className="hover:opacity-70 transition-opacity active:scale-95 duration-150 p-1">
             <span className="material-symbols-outlined text-[#3E4A3F] dark:text-[#BDCABC] text-2xl">notifications</span>
           </button>
 
-          {/* Avatar + dropdown */}
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen((o) => !o)}

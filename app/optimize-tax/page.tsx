@@ -121,7 +121,7 @@ export default function InvestPage() {
       tax_status:              formData.tax_status,
       age:                     formData.age,
       has_medical_card:        formData.medical_card
-    }, { onConflict: 'user_id' })
+    })
 
     if (incError) {
       console.error('Error saving basic profile:', incError)
@@ -137,7 +137,7 @@ export default function InvestPage() {
     const { data, error } = await supabase.from('tax_profiles').upsert({
       user_id: session?.user.id,
       ...taxData
-    }, { onConflict: 'user_id' }).select().single()
+    }).select().single()
 
     if (error) {
       console.error('Error saving profile:', error)

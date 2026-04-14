@@ -11,7 +11,6 @@ export default function LandingPage() {
       <TopAppBar />
 
       <main className="pt-24 pb-32">
-        {/* Hero */}
         <section className="container mx-auto px-6 py-12 md:py-24">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             <div className="lg:col-span-7 space-y-8">
@@ -45,7 +44,6 @@ export default function LandingPage() {
             </div>
             <div className="lg:col-span-5 relative">
               <div className="relative z-10 rounded-[2.5rem] overflow-hidden shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-700 aspect-video md:aspect-[4/5] lg:aspect-square">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/finance_image.jpeg"
                   alt="TaxOptimus Dashboard Preview"
@@ -57,10 +55,8 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Did You Know */}
         <section id="insights" className="container mx-auto px-6 py-12">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* The €600 Million Reality */}
             <div className="md:col-span-2 bg-on-surface text-surface rounded-[3rem] p-8 md:p-12 flex flex-col justify-between relative overflow-hidden">
               <div className="relative z-10 space-y-6">
                 <span className="bg-primary-container/20 text-primary-container px-4 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase border border-primary-container/30">The €600 Million Reality</span>
@@ -77,7 +73,6 @@ export default function LandingPage() {
             </div>
 
             <div className="space-y-6 flex flex-col">
-              {/* The Unclaimed Fortune */}
               <div className="flex-1 bg-primary-container rounded-[2.5rem] p-8 flex flex-col justify-center space-y-4 border border-primary/10">
                 <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
                   <span className="material-symbols-outlined text-on-primary-container text-2xl">account_balance</span>
@@ -88,7 +83,6 @@ export default function LandingPage() {
                 </p>
               </div>
 
-              {/* The Individual Windfall */}
               <div className="flex-1 bg-surface-container-high rounded-[2.5rem] p-8 flex flex-col justify-center space-y-2 border border-outline-variant/10 shadow-sm shadow-black/5">
                 <h3 className="text-xs font-black text-on-surface-variant uppercase tracking-widest">Typical Refund</h3>
                 <p className="text-3xl font-black text-primary tracking-tighter">€300 – €1,500</p>
@@ -100,7 +94,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Feature Highlights */}
         <section id="features" className="container mx-auto px-6 py-16 space-y-12">
           <div className="max-w-2xl">
             <h2 className="font-headline text-4xl font-extrabold text-on-surface tracking-tight mb-4">Precision Tools for Modern Wealth</h2>
@@ -123,13 +116,10 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Interactive AI Chat */}
         <LandingChat />
 
-        {/* CTA Banner */}
         <section className="container mx-auto px-6 py-12">
           <div className="rounded-[3rem] overflow-hidden relative h-[400px] flex items-center px-12">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img alt="Irish countryside" className="absolute inset-0 w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBjJLBaG70yPRW0RayXf4KtKBRl5brXD9aA5nMuC60BxABLyQmjJQFUem6dVCgJoTWvPFP67QWR-oOklshcqKRgnjwJuimyqaXhzhHdTuz-J7ucqOmhCdQRsj7i3wPcdf_Lzl61M3WjByjLJNqOakKPlY8e9930iwRp2zjGCxiolG5TT0CWgeuaWUJ1DP7UyyVcUXgNJBFPXmm8q5DHcr2SfrJIYWe1UhFqLmetO0Hg5VhJxA3OeC4hK4Zmu-Kk_80JFSMFD-BQtSI" />
             <div className="absolute inset-0 bg-gradient-to-r from-on-surface to-transparent"></div>
             <div className="relative z-10 max-w-xl space-y-6">

@@ -112,7 +112,7 @@ create policy "Users manage own allocations" on public.asset_allocations
 -- Landing-page calculator results (saved when user logs in after chat)
 create table public.income_profiles (
   id                      uuid default gen_random_uuid() primary key,
-  user_id                 uuid references public.profiles(id) on delete cascade not null,
+  user_id                 uuid references public.profiles(id) on delete cascade not null unique,
   -- Inputs
   gross_income            numeric(10,2) not null,
   tax_status              text not null check (tax_status in ('single','married-one','married-two','one-parent')),
