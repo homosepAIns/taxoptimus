@@ -17,8 +17,6 @@ from reportlab.platypus import (
 )
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
-os.environ["GROQ_API_KEY"] = "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"
-
 # ─────────────────────────────────────────────
 #   PUT YOUR FILE PATH HERE (image or PDF)
 FILE_PATH = "/Users/krishnanvignesh/Desktop/Itag/PHOTO-2026-04-03-19-45-15.jpg"

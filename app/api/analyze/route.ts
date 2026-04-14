@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { spawnSync } from 'child_process'
-import { writeFileSync, readFileSync, unlinkSync, mkdtempSync, rmdirSync } from 'fs'
-import { join } from 'path'
-import { tmpdir } from 'os'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+const FASTAPI_URL = process.env.FASTAPI_URL || 'http://127.0.0.1:8000'
 
 interface AnalysisTx {
   description: string
@@ -27,10 +23,7 @@ interface AnalysisResult {
   insights: string[]
 }
 
-// ── Route handler ─────────────────────────────────────────────────────────────
-
 export async function POST(req: NextRequest) {
-  // 1. Verify auth
   const token = req.headers.get('authorization')?.replace('Bearer ', '')
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -42,17 +35,13 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // 2. Parse multipart form
   const form = await req.formData()
   const file = form.get('file') as File | null
   const mode = (form.get('mode') as string) ?? 'bank_statement'
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
 
-  const bytes  = await file.arrayBuffer()
-  const buffer = Buffer.from(bytes)
-  const isPdf  = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
 
-  // 3. Insert document row (status = processing)
   const { data: docRow, error: insertError } = await supabase.from('documents').insert({
     user_id:      user.id,
     file_name:    file.name,
@@ -66,51 +55,29 @@ export async function POST(req: NextRequest) {
     console.error('[analyze] INSERT failed:', JSON.stringify(insertError))
     return NextResponse.json({ error: 'Failed to create document record', detail: insertError.message }, { status: 500 })
   }
-  console.log('[analyze] Document inserted:', docRow?.id)
-
-  // 4. Write file to temp dir, call Python script, read JSON back
-  let tmpDir: string | null = null
-  let inputPath: string | null = null
-  let outputPath: string | null = null
 
   try {
-    tmpDir     = mkdtempSync(join(tmpdir(), 'taxoptimus-'))
-    inputPath  = join(tmpDir, file.name)
-    outputPath = join(tmpDir, 'analysis.json')
+    const proxyForm = new FormData()
+    const blob = new Blob([await file.arrayBuffer()], { type: file.type })
+    proxyForm.append('file', blob, file.name)
+    proxyForm.append('mode', mode)
 
-    writeFileSync(inputPath, buffer)
-
-    const scriptPath = join(process.cwd(), 'financial_analyzer.py')
-
-    console.log(`[analyze] Calling Python: ${scriptPath} --file ${inputPath} --mode ${mode}`)
-
-    const proc = spawnSync('python', [
-      scriptPath,
-      '--file',   inputPath,
-      '--mode',   mode,
-      '--output', outputPath,
-    ], {
-      timeout:  110_000,
-      encoding: 'utf-8',
+    const response = await fetch(`${FASTAPI_URL}/analyze`, {
+      method: 'POST',
+      body: proxyForm,
     })
 
-    if (proc.status !== 0) {
-      const errMsg = proc.stderr || proc.stdout || 'Python script failed'
-      console.error('[analyze] Python stderr:', proc.stderr)
-      throw new Error(errMsg)
+    if (!response.ok) {
+      const errText = await response.text()
+      throw new Error(`FastAPI /analyze error (${response.status}): ${errText}`)
     }
 
-    console.log('[analyze] Python stdout:', proc.stdout?.slice(0, 200))
+    const result: AnalysisResult = await response.json()
 
-    const rawJson = readFileSync(outputPath, 'utf-8')
-    const result: AnalysisResult = JSON.parse(rawJson)
-
-    // Ensure total_amount is set
     if (!result.total_amount && result.transactions?.length) {
       result.total_amount = result.transactions.reduce((s, t) => s + (t.amount || 0), 0)
     }
 
-    // 5. Save transactions to Supabase
     const txRows = (result.transactions ?? [])
       .filter(t => t.amount > 0)
       .map(t => ({
@@ -130,14 +97,12 @@ export async function POST(req: NextRequest) {
       await supabase.from('transactions').insert(txRows)
     }
 
-    // 6. Mark document as extracted and store the report JSON
     if (docRow?.id) {
       const { error: updateError } = await supabase.from('documents').update({
         status:      'extracted',
         report_json: result,
       }).eq('id', docRow.id)
       if (updateError) console.error('[analyze] UPDATE failed:', JSON.stringify(updateError))
-      else console.log('[analyze] Document updated to extracted')
     }
 
     return NextResponse.json({ ...result, document_id: docRow?.id })
@@ -148,11 +113,5 @@ export async function POST(req: NextRequest) {
       await supabase.from('documents').update({ status: 'error' }).eq('id', docRow.id)
     }
     return NextResponse.json({ error: 'Analysis failed', detail: String(err) }, { status: 500 })
-
-  } finally {
-    // Clean up temp files
-    try { if (inputPath)  unlinkSync(inputPath)  } catch { /* ignore */ }
-    try { if (outputPath) unlinkSync(outputPath) } catch { /* ignore */ }
-    try { if (tmpDir)     rmdirSync(tmpDir)      } catch { /* ignore */ }
   }
 }

@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
 
 interface Message {
-  role: 'ai' | 'user'
+  role: 'ai' | 'user' | 'assistant' // assistant is used by the backend
   text: string
   time: string
 }
@@ -12,45 +12,50 @@ interface Message {
 const INITIAL: Message[] = [
   {
     role: 'ai',
-    text: "Hi! I'm TaxOptimus AI. Ask me anything about Irish tax, take-home pay, pension relief, or how to use the app.",
+    text: "Hi! I'm TaxOptimus AI. I can search **Revenue.ie** for the most up-to-date Irish tax info. How can I help you today?",
     time: now(),
   },
 ]
-
-// Simple keyword-based demo responses — swap in a real API call when ready
-const RESPONSES: [RegExp, string][] = [
-  [/tax credit|credits/i,       "In 2024, most PAYE workers get a Personal Tax Credit (€1,875) and a PAYE Credit (€1,875), totalling €3,750. Married couples get €3,750 combined. You can claim additional credits like medical expenses, rent, or tuition on Revenue's myAccount."],
-  [/pension|prsa|prsi/i,        "Contributing to a PRSA pension is one of the most powerful tax reliefs available. Relief is given at your marginal rate — 40% if you earn over €42,000. So €200/month into a PRSA could save you €80/month in tax."],
-  [/usc|universal social/i,     "USC (Universal Social Charge) has four bands in 2024: 0.5% on the first €12,012, 2% up to €22,920, 4% up to €70,044, and 8% above that. Medical card holders and those over 70 pay a max of 2%."],
-  [/married|spouse|partner/i,   "Married couples can transfer unused standard rate band and tax credits between spouses. If one partner earns less, the higher earner can claim their unused €1,875 credit — worth up to €750/year."],
-  [/rent|housing|landlord/i,    "The Rent Tax Credit is worth €750 per year (€1,500 for couples). It applies to private renters and can be claimed on Revenue's myAccount for current and prior years."],
-  [/upload|statement|receipt/i, "Head to the Upload page to drop in your bank statements or receipts. Our AI extracts transactions, categorises spending, and flags potential tax claims automatically."],
-  [/invest|etf|stock|fund/i,    "Check out the Optimize Tax page for a personalised Irish tax-efficient allocation — typically a split across PRSA pension, Irish-domiciled ETFs, and State Prize Bonds (which are 100% tax-free on winnings)."],
-  [/hello|hi |hey/i,            "Hello! 👋 How can I help you with your Irish taxes today?"],
-]
-
-function getFallback() {
-  return "That's a great question! For the most accurate answer I'd recommend checking Revenue.ie or the Citizens Information site. Is there something specific about Irish income tax, USC, or PRSI I can help clarify?"
-}
 
 function now() {
   return new Date().toLocaleTimeString('en-IE', { hour: '2-digit', minute: '2-digit' })
 }
 
-function getResponse(text: string): string {
-  for (const [pattern, reply] of RESPONSES) {
-    if (pattern.test(text)) return reply
-  }
-  return getFallback()
-}
+function MarkdownText({ text }: { text: string }) {
+  // 1. Split for Bold: **text**
+  // 2. Split for Links: [title](url) or https://...
+  
+  // Re-implemented to handle bold and clickable links
+  const parts = text.split(/(\*\*.*?\*\*|\[.*?\]\(.*?\)|https?:\/\/[^\s]+)/g)
 
-function Bold({ text }: { text: string }) {
-  const parts = text.split(/\*\*(.*?)\*\*/g)
   return (
     <>
-      {parts.map((p, i) =>
-        i % 2 === 1 ? <strong key={i} className="font-semibold text-primary">{p}</strong> : <span key={i}>{p}</span>
-      )}
+      {parts.map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={i} className="font-semibold text-primary">{part.slice(2, -2)}</strong>
+        }
+        
+        // Match [link title](url)
+        const linkMatch = part.match(/\[(.*?)\]\((.*?)\)/)
+        if (linkMatch) {
+          return (
+            <a key={i} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:opacity-80 transition-opacity">
+              {linkMatch[1]}
+            </a>
+          )
+        }
+
+        // Match raw https://...
+        if (part.startsWith('http')) {
+          return (
+            <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:opacity-80 transition-opacity break-all">
+              {part}
+            </a>
+          )
+        }
+
+        return <span key={i}>{part}</span>
+      })}
     </>
   )
 }
@@ -86,24 +91,51 @@ export default function ChatbotWidget() {
 
   if (!user) return null
 
-  function send(e: React.FormEvent<HTMLFormElement>) {
+  async function send(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!input.trim() || typing) return
 
     const userMsg: Message = { role: 'user', text: input.trim(), time: now() }
-    setMessages((prev) => [...prev, userMsg])
+    const updatedMessages = [...messages, userMsg]
+    setMessages(updatedMessages)
     setInput('')
     setTyping(true)
 
-    const reply = getResponse(userMsg.text)
-    const delay = 800 + Math.min(reply.length * 12, 1200)
+    try {
+      // Map frontend messages to backend format
+      const history = updatedMessages.map(m => ({
+        role: m.role === 'ai' ? 'assistant' : m.role,
+        content: m.text
+      }))
 
-    setTimeout(() => {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history })
+      })
+
+      if (!res.ok) throw new Error('Failed to get response')
+
+      const data = await res.json()
+      
       setTyping(false)
-      const aiMsg: Message = { role: 'ai', text: reply, time: now() }
+      const aiMsg: Message = { 
+        role: 'ai', 
+        text: data.content, 
+        time: now() 
+      }
       setMessages((prev) => [...prev, aiMsg])
       if (!open) setUnread((n) => n + 1)
-    }, delay)
+      
+    } catch (err) {
+      console.error('Chat error:', err)
+      setTyping(false)
+      setMessages((prev) => [...prev, { 
+        role: 'ai', 
+        text: "I'm having trouble connecting to my brain right now. Please try again in a moment!", 
+        time: now() 
+      }])
+    }
   }
 
   return (
@@ -121,8 +153,8 @@ export default function ChatbotWidget() {
             <div className="flex-1 min-w-0">
               <p className="font-headline font-bold text-white leading-tight text-sm">TaxOptimus AI</p>
               <p className="text-white/70 text-[11px] flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-primary-container rounded-full"></span>
-                Online
+                <span className="w-1.5 h-1.5 bg-primary-container rounded-full animate-pulse"></span>
+                Connected to Revenue.ie
               </p>
             </div>
             <button
@@ -145,10 +177,10 @@ export default function ChatbotWidget() {
                 <div className="max-w-[78%] space-y-1">
                   <div className={`px-4 py-3 rounded-2xl text-[13px] leading-relaxed ${
                     msg.role === 'ai'
-                      ? 'bg-surface-container text-on-surface rounded-tl-sm border border-outline-variant/10'
+                      ? 'bg-surface-container text-on-surface rounded-tl-sm border border-outline-variant/10 whitespace-pre-wrap'
                       : 'bg-primary text-white rounded-tr-sm'
                   }`}>
-                    <Bold text={msg.text} />
+                    <MarkdownText text={msg.text} />
                   </div>
                   <p className={`text-[10px] text-on-surface-variant px-1 ${msg.role === 'user' ? 'text-right' : ''}`}>{msg.time}</p>
                 </div>
@@ -161,10 +193,13 @@ export default function ChatbotWidget() {
                 <div className="w-7 h-7 rounded-full bg-primary flex-shrink-0 flex items-center justify-center text-white mt-0.5">
                   <span className="material-symbols-outlined text-xs" style={{ fontVariationSettings: '"FILL" 1' }}>smart_toy</span>
                 </div>
-                <div className="bg-surface-container px-4 py-3 rounded-2xl rounded-tl-sm border border-outline-variant/10 flex items-center gap-1">
-                  {[0, 150, 300].map((d) => (
-                    <span key={d} className="w-1.5 h-1.5 bg-on-surface-variant/40 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
-                  ))}
+                <div className="bg-surface-container px-4 py-3 rounded-2xl rounded-tl-sm border border-outline-variant/10 flex items-center gap-2">
+                  <p className="text-[11px] font-medium text-on-surface-variant italic">Searching Revenue.ie...</p>
+                  <div className="flex gap-1">
+                    {[0, 150, 300].map((d) => (
+                      <span key={d} className="w-1.5 h-1.5 bg-on-surface-variant/40 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

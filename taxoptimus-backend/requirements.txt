@@ -1,5 +1,6 @@
 fastapi
 uvicorn
+python-multipart
 pydantic
 requests
 scipy
@@ -9,3 +10,5 @@ pypdfium2
 Pillow
 matplotlib
 requests
+python-dotenv
+duckduckgo-search

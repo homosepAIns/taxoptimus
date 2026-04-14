@@ -1,7 +1,13 @@
 import sys
 import os
-from fastapi import FastAPI, HTTPException
+import tempfile
+import base64
+import traceback
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+
+load_dotenv()
 
 # Add the parent directory to sys.path if needed
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -14,8 +20,11 @@ from .schemas import (
     OptimizationResponse, 
     BoundsResponse, 
     CalculateRequest,
-    WrappedCalculationResponse
+    WrappedCalculationResponse,
+    ChatRequest,
+    ChatResponse
 )
+from .chatbot import assistant
 
 app = FastAPI(title="TaxOptimus Optimization API")
 
@@ -134,6 +143,64 @@ async def optimize_tax(request: OptimizationRequest):
             calculation=calc_result
         )
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Financial Document Analysis ──────────────────────────────────────────────
+
+# Import analysis functions from the app package
+from .analyzer import (
+    analyze_page, merge_results, pdf_to_images,
+    get_image_media_type, MODE_BANK_STATEMENT, MODE_BILL
+)
+
+@app.post("/analyze")
+async def analyze_document(
+    file: UploadFile = File(...),
+    mode: str = Form("bank_statement")
+):
+    """Accepts an uploaded PDF or image, runs Groq vision analysis, returns structured JSON."""
+    if mode not in (MODE_BANK_STATEMENT, MODE_BILL):
+        raise HTTPException(status_code=400, detail=f"Invalid mode: {mode}. Use 'bank_statement' or 'bill'.")
+
+    suffix = os.path.splitext(file.filename or "")[1].lower()
+    allowed = {".pdf", ".jpg", ".jpeg", ".png", ".webp", ".gif"}
+    if suffix not in allowed:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {suffix}")
+
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            contents = await file.read()
+            tmp.write(contents)
+            tmp_path = tmp.name
+
+        if suffix == ".pdf":
+            pages = pdf_to_images(tmp_path)
+            results = [analyze_page(b64, "image/png", mode) for b64 in pages]
+            final = merge_results(results) if len(results) > 1 else results[0]
+        else:
+            b64 = base64.b64encode(contents).decode("utf-8")
+            media = get_image_media_type(tmp_path)
+            final = analyze_page(b64, media, mode)
+
+        return final
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat_with_assistant(request: ChatRequest):
+    """Answers tax questions using AI and a live search tool for Revenue.ie."""
+    try:
+        reply = assistant.chat(request.messages)
+        return ChatResponse(content=reply)
+    except Exception as e:
+        print(f"[CHAT ERROR] Exception in /chat: {e}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

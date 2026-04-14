@@ -85,3 +85,19 @@ class BoundsResponse(BaseModel):
 class CalculateRequest(BaseModel):
     profile: UserProfile
     investments: Investments
+
+# ── Chat Assistant Schemas ──────────────────────────────────────────────────
+
+class ChatMessage(BaseModel):
+    role: str  # "user", "assistant", "system", or "tool"
+    content: Optional[str] = None
+    name: Optional[str] = None
+    tool_calls: Optional[list] = None
+    tool_call_id: Optional[str] = None
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage]
+
+class ChatResponse(BaseModel):
+    content: str
+    role: str = "assistant"

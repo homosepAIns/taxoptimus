@@ -60,8 +60,8 @@ export default function InvestPage() {
       
       // Fetch existing profiles if any
       const [incRes, taxRes] = await Promise.all([
-        supabase.from('income_profiles').select('*').eq('user_id', session.user.id).single(),
-        supabase.from('tax_profiles').select('*').eq('user_id', session.user.id).single()
+        supabase.from('income_profiles').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('tax_profiles').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
       ])
       
       if (!incRes.data) {
@@ -98,8 +98,6 @@ export default function InvestPage() {
         const errData = await res.json().catch(() => ({}))
         console.error("Bounds error:", errData)
         alert(`Could not load optimization bounds: ${errData.error || res.statusText}\nPlease make sure you have filled out your Income Profile in the Dashboard.`)
-        // Fallback to setup wizard if bounds fail so user isn't stuck
-        setSetupStep('employment')
         return
       }
 
@@ -111,7 +109,6 @@ export default function InvestPage() {
     } catch (err) {
       console.error("Failed to fetch bounds", err)
       alert("Failed to connect to the optimization engine.")
-      setSetupStep('employment')
     }
   }
 
@@ -291,7 +288,7 @@ export default function InvestPage() {
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { key: 'medical_card', label: 'Medical Card', icon: 'medical_card' },
+                    { key: 'medical_card', label: 'Medical Card', icon: 'badge' },
                     { key: 'claims_home_carer', label: 'Home Carer', icon: 'home_health' },
                     { key: 'is_blind', label: 'Reg. Blind', icon: 'visibility_off' },
                     { key: 'has_incapacitated_child', label: 'Incap. Child', icon: 'child_care' },
