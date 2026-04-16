@@ -5,7 +5,7 @@ import json
 import re
 from groq import Groq
 from ddgs import DDGS
-from .schemas import ChatMessage
+from schemas import ChatMessage
 
 # MODEL VERSION: 1.0.6 (Standardizing on Llama 3.3 70b with minimal prompting)
 MODEL = "llama-3.3-70b-versatile"

@@ -118,6 +118,9 @@ export default function DashboardPage() {
     employer_health_premium:    0,
     flat_rate_expense:          0,
     employee_health_insurance:  0,
+    micro_generation_income:    0,
+    is_blind:                   false,
+    nursing_home_fees:          0,
   })
 
   // ── Savings Goals state ──────────────────────────────────────────────────────
@@ -148,7 +151,7 @@ export default function DashboardPage() {
       if (raw) {
         try {
           const c = JSON.parse(raw)
-          await supabase.from('income_profiles').insert({
+          await supabase.from('income_profiles').upsert({
             user_id:                 user.id,
             gross_income:            c.grossIncome,
             tax_status:              c.taxStatus,
@@ -160,7 +163,7 @@ export default function DashboardPage() {
             net_monthly:             c.netMonthly,
             pension_monthly:         c.pensionMonthly ?? null,
             potential_annual_saving: c.potentialAnnualSaving ?? null,
-          })
+          }, { onConflict: 'user_id' })
         } catch (_) { /* ignore */ }
         localStorage.removeItem('taxoptimus_pending_calc')
       }
@@ -206,6 +209,9 @@ export default function DashboardPage() {
           employer_health_premium:    existingTaxProfile.employer_health_premium || 0,
           flat_rate_expense:          existingTaxProfile.flat_rate_expense || 0,
           employee_health_insurance:  existingTaxProfile.employee_health_insurance || 0,
+          micro_generation_income:    existingTaxProfile.micro_generation_income || 0,
+          is_blind:                   existingTaxProfile.is_blind || false,
+          nursing_home_fees:          existingTaxProfile.nursing_home_fees || 0,
         })
         // Use stored calc result — no API call needed
         if (existingTaxProfile.calc_result) {

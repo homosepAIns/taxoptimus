@@ -4,7 +4,7 @@ from scipy.optimize import minimize
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .schemas import UserProfile, Investments
+    from schemas import UserProfile, Investments
 
 # ╔══════════════════════════════════════════════════════════════════════╗
 # ║  TAX REGISTRY                                                       ║

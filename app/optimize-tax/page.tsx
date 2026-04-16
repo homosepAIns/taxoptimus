@@ -121,7 +121,7 @@ export default function InvestPage() {
       tax_status:              formData.tax_status,
       age:                     formData.age,
       has_medical_card:        formData.medical_card
-    })
+    }, { onConflict: 'user_id' })
 
     if (incError) {
       console.error('Error saving basic profile:', incError)

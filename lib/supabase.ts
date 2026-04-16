@@ -91,6 +91,9 @@ export type TaxProfile = {
   additional_tax_credits: number
   eiis_max_willing: number
   deeds_max_willing: number
+  micro_generation_income: number
+  is_blind: boolean
+  nursing_home_fees: number
 
   // Optimizer Levers
   required_liquid_cash: number

@@ -12,8 +12,8 @@ load_dotenv()
 # Add the parent directory to sys.path if needed
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from .engine import IrishTaxCalculator
-from .schemas import (
+from engine import IrishTaxCalculator
+from schemas import (
     UserProfile,
     Investments,
     OptimizationRequest, 
@@ -24,7 +24,7 @@ from .schemas import (
     ChatRequest,
     ChatResponse
 )
-from .chatbot import assistant
+from chatbot import assistant
 
 app = FastAPI(title="TaxOptimus Optimization API")
 
@@ -146,10 +146,9 @@ async def optimize_tax(request: OptimizationRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-────────────────
 
 # Import analysis functions from the app package
-from .analyzer import (
+from analyzer import (
     analyze_page, merge_results, pdf_to_images,
     get_image_media_type, MODE_BANK_STATEMENT, MODE_BILL
 )
