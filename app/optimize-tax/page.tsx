@@ -46,7 +46,11 @@ export default function InvestPage() {
   })
 
   // Bounds & Optimization
-  const [bounds, setBounds] = useState<{ min_take_home: number; max_take_home: number } | null>(null)
+  const [bounds, setBounds] = useState<{ 
+    min_take_home: number; 
+    max_take_home: number; 
+    limits: Record<string, number>; 
+  } | null>(null)
   const [requiredLiquidCash, setRequiredLiquidCash] = useState(0)
   const [optimalInvestments, setOptimalInvestments] = useState<any>(null)
   const [calcData, setCalcData] = useState<any>(null)
@@ -488,12 +492,12 @@ export default function InvestPage() {
                 <div className="flex-1 flex flex-col">
                   <div className="space-y-8 flex-1">
                     {[
-                      { id: 'pension', label: 'Pension (PRSA)', amount: optimalInvestments.pension_contribution, color: 'bg-primary', icon: 'savings', desc: 'Saves tax at your highest rate (40%).', maxVal: bounds?.max_pension || 1, link: 'PENSION_RELIEF' },
-                      { id: 'eiis', label: 'EIIS Investment', amount: optimalInvestments.eiis_investment, color: 'bg-purple-500', icon: 'trending_up', desc: 'Direct deduction from taxable income up to €500k.', maxVal: bounds?.max_eiis || 1, link: 'EIIS' },
-                      { id: 'deeds', label: 'Deeds of Covenant', amount: optimalInvestments.deeds_of_covenant, color: 'bg-rose-500', icon: 'diversity_1', desc: 'Support dependents legally, pre-tax.', maxVal: bounds?.max_deeds || 1, link: 'DEEDS_OF_COVENANT' },
-                      { id: 'cycle', label: 'Cycle to Work', amount: optimalInvestments.cycle_to_work, color: 'bg-emerald-500', icon: 'directions_bike', desc: 'Pre-tax bike purchase.', maxVal: bounds?.max_cycle || 1, link: 'CYCLE_TO_WORK' },
-                      { id: 'travel', label: 'Travel Pass', amount: optimalInvestments.travel_pass, color: 'bg-blue-500', icon: 'train', desc: 'Tax-free public transport.', maxVal: bounds?.max_travel || 1, link: 'TRAVEL_PASS_TAXSAVER' },
-                      { id: 'ip', label: 'Income Protection', amount: optimalInvestments.income_protection_premium, color: 'bg-amber-500', icon: 'security', desc: '20% tax credit on premiums.', maxVal: bounds?.max_ip || 1, link: 'INCOME_PROTECTION_RELIEF' },
+                      { id: 'pension', label: 'Pension (PRSA)', amount: optimalInvestments.pension_contribution, color: 'bg-primary', icon: 'savings', desc: 'Saves tax at your highest rate (40%).', maxVal: bounds?.limits?.max_pension || 1, link: 'PENSION_RELIEF' },
+                      { id: 'eiis', label: 'EIIS Investment', amount: optimalInvestments.eiis_investment, color: 'bg-purple-500', icon: 'trending_up', desc: 'Direct deduction from taxable income up to €500k.', maxVal: bounds?.limits?.max_eiis || 1, link: 'EIIS' },
+                      { id: 'deeds', label: 'Deeds of Covenant', amount: optimalInvestments.deeds_of_covenant, color: 'bg-rose-500', icon: 'diversity_1', desc: 'Support dependents legally, pre-tax.', maxVal: bounds?.limits?.max_deeds || 1, link: 'DEEDS_OF_COVENANT' },
+                      { id: 'cycle', label: 'Cycle to Work', amount: optimalInvestments.cycle_to_work, color: 'bg-emerald-500', icon: 'directions_bike', desc: 'Pre-tax bike purchase.', maxVal: bounds?.limits?.max_cycle || 1, link: 'CYCLE_TO_WORK' },
+                      { id: 'travel', label: 'Travel Pass', amount: optimalInvestments.travel_pass, color: 'bg-blue-500', icon: 'train', desc: 'Tax-free public transport.', maxVal: bounds?.limits?.max_travel || 1, link: 'TRAVEL_PASS_TAXSAVER' },
+                      { id: 'ip', label: 'Income Protection', amount: optimalInvestments.income_protection_premium, color: 'bg-amber-500', icon: 'security', desc: 'Tax relief at your highest rate.', maxVal: bounds?.limits?.max_ip || 1, link: 'INCOME_PROTECTION_RELIEF' },
                     ].filter(item => item.amount > 0).map((item) => (
                       <div key={item.id} className="relative group">
                         <div className="flex justify-between items-end mb-3">
