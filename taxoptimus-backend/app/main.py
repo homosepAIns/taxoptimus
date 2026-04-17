@@ -3,6 +3,7 @@ import os
 import tempfile
 import base64
 import traceback
+from typing import Dict, Any
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
