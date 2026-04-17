@@ -32,16 +32,6 @@ from fastapi.responses import JSONResponse
 
 app = FastAPI(title="TaxOptimus Optimization API")
 
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request, exc):
-    print(f"DEBUG: Validation Error for {request.url}")
-    print(f"DEBUG: Errors: {exc.errors()}")
-    print(f"DEBUG: Body: {await request.body()}")
-    return JSONResponse(
-        status_code=422,
-        content={"detail": exc.errors(), "body": str(await request.body())},
-    )
-
 # Enable CORS for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
@@ -55,29 +45,13 @@ app.add_middleware(
 from fastapi import APIRouter
 tax_router = APIRouter(prefix="/tax")
 
-from fastapi import Body
-
 @tax_router.post("/calculate", response_model=WrappedCalculationResponse)
-async def calculate_tax(request: Dict[str, Any] = Body(...)):
-    """
-    Handles both nested and flat requests. 
-    Explicitly uses Body(...) to ensure FastAPI doesn't look for query params.
-    """
+async def calculate_tax(request: CalculateRequest):
+    """Simple calculation based on current profile and investments."""
     try:
-        # Detect flat payload from browser vs nested from Next.js proxy
-        if "gross_income" in request and "profile" not in request:
-            # It's a flat browser request
-            profile = UserProfile(**request)
-            investments = Investments(**request)
-        else:
-            # It's a nested proxy request
-            profile = UserProfile(**request["profile"])
-            investments = Investments(**request["investments"])
-
-        calc_result = IrishTaxCalculator.calculate(profile, investments)
+        calc_result = IrishTaxCalculator.calculate(request.profile, request.investments)
         return {"calculation": calc_result}
     except Exception as e:
-        print(f"DEBUG: Calculation Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @tax_router.post("/bounds", response_model=BoundsResponse)
