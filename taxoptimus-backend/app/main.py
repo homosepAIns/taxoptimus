@@ -26,7 +26,20 @@ from schemas import (
 )
 from chatbot import assistant
 
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
 app = FastAPI(title="TaxOptimus Optimization API")
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    print(f"DEBUG: Validation Error for {request.url}")
+    print(f"DEBUG: Errors: {exc.errors()}")
+    print(f"DEBUG: Body: {await request.body()}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": str(await request.body())},
+    )
 
 # Enable CORS for Next.js frontend
 app.add_middleware(
