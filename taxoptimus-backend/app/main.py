@@ -54,19 +54,22 @@ app.add_middleware(
 from fastapi import APIRouter
 tax_router = APIRouter(prefix="/tax")
 
+from fastapi import Body
+
 @tax_router.post("/calculate", response_model=WrappedCalculationResponse)
-async def calculate_tax(request: Dict[str, Any]):
+async def calculate_tax(request: Dict[str, Any] = Body(...)):
     """
-    Handles both nested and flat requests to accommodate:
-    1. Local: Next.js 'wraps' data into {profile, investments}
-    2. Prod: Nginx 'bypasses' wrapping and sends the flat browser payload
+    Handles both nested and flat requests. 
+    Explicitly uses Body(...) to ensure FastAPI doesn't look for query params.
     """
     try:
-        # Detect flat payload from browser
+        # Detect flat payload from browser vs nested from Next.js proxy
         if "gross_income" in request and "profile" not in request:
+            # It's a flat browser request
             profile = UserProfile(**request)
             investments = Investments(**request)
         else:
+            # It's a nested proxy request
             profile = UserProfile(**request["profile"])
             investments = Investments(**request["investments"])
 
