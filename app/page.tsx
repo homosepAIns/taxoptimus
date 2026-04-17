@@ -61,7 +61,7 @@ export default function LandingPage() {
               <div className="relative z-10 space-y-6">
                 <span className="bg-primary-container/20 text-primary-container px-4 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase border border-primary-container/30">The €600 Million Reality</span>
                 <h2 className="font-headline text-3xl md:text-5xl font-black leading-tight tracking-tight">
-                  Over <span className="text-primary-container">80%</span> of PAYE returns results in an overpayment.
+                  Over <span className="text-primary-container">17%</span> of PAYE returns results in an overpayment.
                 </h2>
                 <p className="text-surface-variant/80 text-lg md:text-xl max-w-2xl leading-relaxed">
                   As of March 2026, more than <span className="text-white font-bold">€637 million</span> has already been refunded to savvy taxpayers who took a second look at their returns.
