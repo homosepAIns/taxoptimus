@@ -55,12 +55,25 @@ from fastapi import APIRouter
 tax_router = APIRouter(prefix="/tax")
 
 @tax_router.post("/calculate", response_model=WrappedCalculationResponse)
-async def calculate_tax(request: CalculateRequest):
-    """Simple calculation based on current inputs, no optimization."""
+async def calculate_tax(request: Dict[str, Any]):
+    """
+    Handles both nested and flat requests to accommodate:
+    1. Local: Next.js 'wraps' data into {profile, investments}
+    2. Prod: Nginx 'bypasses' wrapping and sends the flat browser payload
+    """
     try:
-        calc_result = IrishTaxCalculator.calculate(request.profile, request.investments)
+        # Detect flat payload from browser
+        if "gross_income" in request and "profile" not in request:
+            profile = UserProfile(**request)
+            investments = Investments(**request)
+        else:
+            profile = UserProfile(**request["profile"])
+            investments = Investments(**request["investments"])
+
+        calc_result = IrishTaxCalculator.calculate(profile, investments)
         return {"calculation": calc_result}
     except Exception as e:
+        print(f"DEBUG: Calculation Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @tax_router.post("/bounds", response_model=BoundsResponse)
