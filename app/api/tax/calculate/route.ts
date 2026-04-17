@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const response = await fetch(`${FASTAPI_URL}/calculate`, {
+    const response = await fetch(`${FASTAPI_URL}/tax/calculate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

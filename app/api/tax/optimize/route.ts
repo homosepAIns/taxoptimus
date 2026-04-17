@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Call Python Optimizer
-    const response = await fetch(`${FASTAPI_URL}/optimize`, {
+    const response = await fetch(`${FASTAPI_URL}/tax/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

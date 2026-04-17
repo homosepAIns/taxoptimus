@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const response = await fetch(`${FASTAPI_URL}/bounds`, {
+    const response = await fetch(`${FASTAPI_URL}/tax/bounds`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
